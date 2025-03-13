@@ -7,6 +7,7 @@ from PIL import Image
 import struct
 import math
 import datetime
+from .map_visualizer import MapVisualizer
 
 class ExportManager:
     """
@@ -23,82 +24,82 @@ class ExportManager:
         """
         self.planet = planet
         self.export_history = []
+        self.visualizer = MapVisualizer(planet)
     
-    def export_heightmap(self, output_path, width=2048, height=1024, 
-                         region=None, format='png', bit_depth=16,
-                         add_metadata=True, scaling_factor=1.0):
-        """
-        Export a heightmap of the planet's terrain.
+def export_heightmap(self, output_path, width=2048, height=1024, 
+                     region=None, format='png', bit_depth=16,
+                     add_metadata=True, scaling_factor=1.0):
+    """
+    Export a heightmap of the planet's terrain using enhanced visualization.
+    
+    Parameters:
+    - output_path: Path to save the heightmap
+    - width, height: Dimensions of the output image
+    - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
+    - format: Output format ('png', 'raw', 'tiff')
+    - bit_depth: Bit depth for the heightmap (8 or 16)
+    - add_metadata: Whether to add a JSON metadata file
+    - scaling_factor: Vertical exaggeration factor
+    
+    Returns:
+    - Path to the exported heightmap
+    """
+    # Use the visualizer to export the heightmap
+    projection = 'mercator' if region else 'equirectangular'
+    
+    path = self.visualizer.export_heightmap(
+        output_path, 
+        width=width, 
+        height=height, 
+        projection=projection,
+        format=format, 
+        bit_depth=bit_depth,
+        region=region
+    )
+    
+    # Add metadata file if requested
+    if add_metadata:
+        min_elevation = float(self.planet.elevation.min())
+        max_elevation = float(self.planet.elevation.max())
         
-        Parameters:
-        - output_path: Path to save the heightmap
-        - width, height: Dimensions of the output image
-        - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
-        - format: Output format ('png', 'raw', 'tiff')
-        - bit_depth: Bit depth for the heightmap (8 or 16)
-        - add_metadata: Whether to add a JSON metadata file
-        - scaling_factor: Vertical exaggeration factor
-        
-        Returns:
-        - Path to the exported heightmap
-        """
-        # Determine projection type
         if region:
             projection = 'mercator'
             lat_min, lon_min, lat_max, lon_max = region
         else:
             projection = 'equirectangular'
             lat_min, lon_min, lat_max, lon_max = -90, -180, 90, 180
-        
-        # Create the heightmap grid
-        heightmap = self._generate_heightmap_grid(width, height, region, scaling_factor)
-        
-        # Record min/max values for metadata
-        min_elevation = self.planet.elevation.min()
-        max_elevation = self.planet.elevation.max()
-        
-        # Export based on format
-        if format == 'raw':
-            self._export_raw_heightmap(heightmap, output_path, bit_depth)
-        elif format == 'tiff':
-            self._export_tiff_heightmap(heightmap, output_path, bit_depth)
-        else:  # Default to PNG
-            self._export_png_heightmap(heightmap, output_path, bit_depth)
-        
-        # Add metadata file if requested
-        if add_metadata:
-            metadata = {
-                "width": width,
-                "height": height,
-                "min_elevation_km": float(min_elevation),
-                "max_elevation_km": float(max_elevation),
-                "scale_factor": float(scaling_factor),
-                "projection": projection,
-                "bit_depth": bit_depth,
-                "region": {
-                    "lat_min": lat_min, 
-                    "lon_min": lon_min, 
-                    "lat_max": lat_max, 
-                    "lon_max": lon_max
-                } if region else None
-            }
             
-            metadata_path = os.path.splitext(output_path)[0] + '.json'
-            with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
-        
-        # Record this export
-        self.export_history.append({
-            "type": "heightmap",
-            "path": output_path,
-            "dimensions": [width, height],
-            "format": format,
+        metadata = {
+            "width": width,
+            "height": height,
+            "min_elevation_km": min_elevation,
+            "max_elevation_km": max_elevation,
+            "scale_factor": float(scaling_factor),
             "projection": projection,
-            "region": region
-        })
+            "bit_depth": bit_depth,
+            "region": {
+                "lat_min": lat_min, 
+                "lon_min": lon_min, 
+                "lat_max": lat_max, 
+                "lon_max": lon_max
+            } if region else None
+        }
         
-        print(f"Heightmap exported to {output_path}")
-        return output_path
+        metadata_path = os.path.splitext(output_path)[0] + '.json'
+        with open(metadata_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+    
+    # Record this export
+    self.export_history.append({
+        "type": "heightmap",
+        "path": output_path,
+        "dimensions": [width, height],
+        "format": format,
+        "projection": projection,
+        "region": region
+    })
+    
+    return path
     
     def _generate_heightmap_grid(self, width, height, region=None, scaling_factor=1.0):
         """Generate a heightmap grid from the planet's elevation data"""
@@ -204,58 +205,41 @@ class ExportManager:
         # Save image as TIFF
         img.save(output_path, format='TIFF')
     
-    def export_climate_map(self, output_path, data_type='temperature', 
-                           width=2048, height=1024, region=None, 
-                           colormap='viridis', bit_depth=8):
-        """
-        Export a climate data map (temperature, precipitation, etc).
-        
-        Parameters:
-        - output_path: Path to save the map
-        - data_type: Type of data to export ('temperature', 'precipitation')
-        - width, height: Dimensions of the output image
-        - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
-        - colormap: Matplotlib colormap to use
-        - bit_depth: Bit depth (8 or 16)
-        
-        Returns:
-        - Path to the exported map
-        """
-        # Check if climate data exists
-        if data_type == 'temperature' and self.planet.temperature is None:
-            raise ValueError("Temperature data not available. Run climate simulation first.")
-        elif data_type == 'precipitation' and self.planet.precipitation is None:
-            raise ValueError("Precipitation data not available. Run climate simulation first.")
-        
-        # Get data based on type
-        if data_type == 'temperature':
-            data = self.planet.temperature
-            title = "Temperature Map (°C)"
-            if colormap == 'viridis':  # Override with better map for temperature
-                colormap = 'coolwarm'
-        elif data_type == 'precipitation':
-            data = self.planet.precipitation
-            title = "Precipitation Map (mm/year)"
-            if colormap == 'viridis':  # Override with better map for precipitation
-                colormap = 'Blues'
-        
-        # Create the data grid
-        grid = self._generate_data_grid(data, width, height, region)
-        
-        # Export as an image
-        self._export_data_image(grid, output_path, colormap, title, bit_depth)
-        
-        # Record this export
-        self.export_history.append({
-            "type": f"climate_{data_type}",
-            "path": output_path,
-            "dimensions": [width, height],
-            "region": region
-        })
-        
-        print(f"{data_type.capitalize()} map exported to {output_path}")
-        return output_path
+   def export_climate_map(self, output_path, data_type='temperature', 
+                       width=2048, height=1024, region=None, 
+                       colormap='viridis', bit_depth=8):
+    """
+    Export a climate data map using enhanced visualization.
+    """
+    # Use the visualizer for climate maps
+    if data_type == 'temperature':
+        path = self.visualizer.visualize_temperature(
+            output_path, 
+            width=width, 
+            height=height, 
+            projection='mercator' if region else 'equirectangular'
+        )
+    elif data_type == 'precipitation':
+        path = self.visualizer.visualize_precipitation(
+            output_path, 
+            width=width, 
+            height=height, 
+            projection='mercator' if region else 'equirectangular'
+        )
+    else:
+        raise ValueError(f"Unsupported climate data type: {data_type}")
     
+    # Record this export
+    self.export_history.append({
+        "type": f"climate_{data_type}",
+        "path": output_path,
+        "dimensions": [width, height],
+        "region": region
+    })
+    
+    return path
+    
+
     def export_biome_map(self, output_path, width=2048, height=1024, 
                           region=None, custom_colors=None):
         """

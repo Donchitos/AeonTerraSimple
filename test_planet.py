@@ -243,45 +243,53 @@ def save_state(planet, tectonics, session_dir, step, name):
             show_features=args.show_features
         )
     
-    # 2D visualizations
+# 2D visualizations
     if args.vis_mode in ['2d', 'both']:
-        # Save 2D elevation map
+    # Save 2D elevation map
         planet.visualize_2d(
-            save_path=os.path.join(session_dir, f"planet_{name}_2d.png"),
-            mode='elevation',
-            projection=args.projection
-        )
-        
-        # Save 2D plate map
-        tectonics.visualize_plates_2d(
-            save_path=os.path.join(session_dir, f"plates_{name}_2d.png"),
-            show_features=args.show_features,
-            projection=args.projection
-        )
+        save_path=os.path.join(session_dir, f"planet_{name}_2d.png"),
+        mode='elevation',
+        projection=args.projection
+    )
     
-    # Export heightmap if requested
+    # Save satellite-style map
+    planet.visualize_2d(
+        save_path=os.path.join(session_dir, f"planet_{name}_satellite.png"),
+        mode='satellite',
+        projection=args.projection
+    )
+    
+    # Save 2D plate map
+    tectonics.visualize_plates_2d(
+        save_path=os.path.join(session_dir, f"plates_{name}_2d.png"),
+        show_features=args.show_features,
+        projection=args.projection
+    )
+    
+# Export heightmap if requested
     if args.export_heightmap or args.export_all:
         export_manager = ExportManager(planet)
+    
+    # Full planet heightmap
+    export_manager.export_heightmap(
+        os.path.join(session_dir, f"heightmap_{name}.png"),
+        width=2048,
+        height=1024
+    )
+    
+    # Region heightmap if specified
+    if args.region:
+        try:
+            lat1, lon1, lat2, lon2 = map(float, args.region.split(','))
+            export_manager.export_heightmap(
+                os.path.join(session_dir, f"region_{name}.png"),
+                region=(lat1, lon1, lat2, lon2),
+                width=1024,
+                height=1024
+            )
+        except Exception as e:
+            print(f"Error exporting region: {e}")
         
-        # Full planet heightmap
-        export_manager.export_heightmap(
-            os.path.join(session_dir, f"heightmap_{name}.png"),
-            width=2048,
-            height=1024
-        )
-        
-        # Region heightmap if specified
-        if args.region:
-            try:
-                lat1, lon1, lat2, lon2 = map(float, args.region.split(','))
-                export_manager.export_heightmap(
-                    os.path.join(session_dir, f"region_{name}.png"),
-                    region=(lat1, lon1, lat2, lon2),
-                    width=1024,
-                    height=1024
-                )
-            except Exception as e:
-                print(f"Error exporting region: {e}")
 
 def save_history(history, session_dir):
     """Save the simulation history as JSON"""

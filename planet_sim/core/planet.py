@@ -1,5 +1,6 @@
 import numpy as np
 from ..utils.sphere_grid import SphericalGrid
+from ..utils.map_visualizer import MapVisualizer
 
 class Planet:
     """
@@ -376,3 +377,35 @@ def _lat_lon_to_mercator(self, lat, lon, width, height):
     y = (height / 2) - (width * merc_n / (2 * math.pi))
     
     return x, y
+
+def visualize_2d(self, save_path=None, mode='elevation', projection='mercator', show=False):
+    """
+    Enhanced 2D visualization using the MapVisualizer.
+    
+    Parameters:
+    - save_path: Path to save the visualization
+    - mode: 'elevation', 'plates', 'satellite', 'heightmap', 'temperature', 'precipitation', 'biomes'
+    - projection: Map projection ('mercator', 'equirectangular')
+    - show: Whether to display the plot
+    """
+    # Create map visualizer
+    visualizer = MapVisualizer(self)
+    
+    # Call appropriate visualization method based on mode
+    if mode == 'elevation':
+        return visualizer.visualize_terrain(save_path, show=show, projection=projection)
+    elif mode == 'plates':
+        return visualizer.visualize_plates(save_path, show=show, projection=projection)
+    elif mode == 'satellite':
+        return visualizer.visualize_terrain(save_path, show=show, projection=projection, satellite_style=True)
+    elif mode == 'heightmap':
+        return visualizer.visualize_heightmap(save_path, show=show, projection=projection)
+    elif mode == 'temperature' and self.temperature is not None:
+        return visualizer.visualize_temperature(save_path, show=show, projection=projection)
+    elif mode == 'precipitation' and self.precipitation is not None:
+        return visualizer.visualize_precipitation(save_path, show=show, projection=projection)
+    elif mode == 'biomes' and self.biome_ids is not None:
+        return visualizer.visualize_biomes(save_path, show=show, projection=projection)
+    else:
+        print(f"Visualization mode '{mode}' not supported or required data missing.")
+        return None

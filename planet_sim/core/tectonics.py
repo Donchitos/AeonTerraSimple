@@ -4,6 +4,7 @@ from scipy.spatial import Voronoi
 from scipy.ndimage import gaussian_filter
 import datetime
 import os
+from ..utils.map_visualizer import MapVisualizer
 
 class TectonicSimulation:
     """
@@ -2269,118 +2270,24 @@ class TectonicSimulation:
         
         return save_path if save_path else None
     
-    def visualize_plates_2d(self, save_path=None, show=False, projection='equirectangular', show_features=False):
+    def visualize_plates_2d(self, save_path=None, show=False, projection='mercator', show_features=False):
         """
-        Visualize tectonic plates as a 2D map projection.
+        Visualize tectonic plates as a 2D map using enhanced visualization.
         
         Parameters:
         - save_path: If provided, save the visualization to this file path
         - show: Whether to display the plot
-        - projection: Map projection ('equirectangular', 'mollweide', 'orthographic')
+        - projection: Map projection ('mercator', 'equirectangular', etc.)
         - show_features: Whether to highlight geological features
         """
-        import matplotlib.pyplot as plt
-        import cartopy.crs as ccrs
-        
-        # Set up the projection
-        if (projection == 'equirectangular'):
-            proj = ccrs.PlateCarree()
-        elif (projection == 'mollweide'):
-            proj = ccrs.Mollweide()
-        elif (projection == 'orthographic'):
-            proj = ccrs.Orthographic(central_longitude=0, central_latitude=30)
-        else:
-            proj = ccrs.PlateCarree()  # Default
-        
-        # Create figure and axis
-        fig = plt.figure(figsize=(12, 6))
-        ax = fig.add_subplot(1, 1, 1, projection=proj)
-        
-        # Create a unique color for each plate
-        plate_colors = {}
-        for plate in self.plates:
-            hue = (plate['id'] * 0.618033988749895) % 1.0  # Golden ratio
-            plate_colors[plate['id']] = plt.cm.hsv(hue)
-        
-        # Convert 3D coordinates to lat/lon for mapping
-        lats = []
-        lons = []
-        colors = []
-        
-        for i, vertex in enumerate(self.planet.grid.vertices):
-            # Convert to lat/lon
-            x, y, z = vertex
-            lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
-            lon = np.arctan2(y, x) * 180 / np.pi
-            
-            lats.append(lat)
-            lons.append(lon)
-            
-            # Color based on plate ID
-            plate_id = self.planet.plate_ids[i]
-            if plate_id >= 0 and plate_id < len(self.plates):
-                colors.append(plate_colors[plate_id])
-            else:
-                colors.append([0.7, 0.7, 0.7])  # Gray for unassigned
-        
-        # Plot the scattered points
-        ax.scatter(lons, lats, c=colors, s=5, transform=ccrs.PlateCarree(), alpha=0.8)
-        
-        # Mark plate boundaries
-        if self.plate_boundaries is not None:
-            boundary_lats = []
-            boundary_lons = []
-            
-            for i, is_boundary in enumerate(self.plate_boundaries):
-                if is_boundary:
-                    x, y, z = self.planet.grid.vertices[i]
-                    lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[i])) * 180 / np.pi
-                    lon = np.arctan2(y, x) * 180 / np.pi
-                    
-                    boundary_lats.append(lat)
-                    boundary_lons.append(lon)
-            
-            ax.scatter(boundary_lons, boundary_lats, c='black', s=2, 
-                     transform=ccrs.PlateCarree(), alpha=0.5)
-        
-        # Show plate motion vectors and features if requested
-        if show_features:
-            for plate in self.plates:
-                # Get the plate center in lat/lon
-                center = plate['center']
-                x, y, z = center
-                lat = np.arcsin(z / np.linalg.norm(center)) * 180 / np.pi
-                lon = np.arctan2(y, x) * 180 / np.pi
-                
-                # Draw velocity arrow
-                vel = plate['velocity']
-                # Convert 3D velocity to lat/lon components (simplified)
-                vel_mag = np.linalg.norm(vel) * 10000  # Scale for visibility
-                
-                # Mark plate center and ID
-                ax.plot(lon, lat, 'ro', markersize=4, transform=ccrs.PlateCarree())
-                ax.text(lon, lat, str(plate['id']), transform=ccrs.PlateCarree(), 
-                      fontsize=8, color='white', ha='center', va='center')
-        
-        # Add gridlines for reference
-        gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.5)
-        
-        # Add title
-        plt.title(f'Tectonic Plates at {self.planet.age:.1f} million years', fontsize=14)
-        
-        plt.tight_layout()
-        
-        if save_path:
-            plt.savefig(save_path, dpi=200, bbox_inches='tight')
-            
-            if not show:
-                plt.close(fig)
-            print(f"2D plate visualization saved to {save_path}")
-            
-        if show:
-            plt.show()
-        
-        return save_path if save_path else None
+        visualizer = MapVisualizer(self.planet)
+        return visualizer.visualize_plates(
+            save_path=save_path,
+            show=show,
+            projection=projection,
+            show_boundaries=True,
+            show_arrows=show_features
+        )
     
     def visualize_history(self, save_path=None, show=False):
         """
@@ -2561,7 +2468,6 @@ def visualize_plates_2d(self, save_path=None, show=False, projection='mercator',
 
 def _draw_plate_boundaries_2d(self, ax, width, height, projection, plate_colors):
     """Draw plate boundaries on 2D map with correct styling by boundary type"""
-    import numpy as np
     
     # Get neighbors for boundary detection
     neighbors = self.planet.grid.get_vertex_neighbors()
