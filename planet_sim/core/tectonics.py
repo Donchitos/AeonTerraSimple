@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi
 from scipy.ndimage import gaussian_filter
+import datetime
+import os
 
 class TectonicSimulation:
     """
@@ -106,8 +108,15 @@ class TectonicSimulation:
         self.transform_faults = [] # Major transform faults
         self.back_arc_basins = [] # Back-arc spreading centers
         
+        # Event tracking for reporting
+        self.recent_events = []
+        self.all_events = []
+        
         # Visualization params
         self.show_plates = True
+        
+        # Allow the planet to access this simulation
+        self.planet._tectonics = self
     
     def initialize_planetary_evolution(self, evolution_stages=3):
         """
@@ -496,6 +505,9 @@ class TectonicSimulation:
         # Record initial state in history
         self._record_state()
         
+        # Add initial event
+        self._add_event("Initial planetary configuration established")
+        
         print(f"Initialized {len(self.plates)} tectonic plates")
         return self
         
@@ -680,52 +692,52 @@ class TectonicSimulation:
                         
                         break  # Only mark once per vertex
     
-def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
-    """Calculate the type of boundary based on relative plate motion"""
-    # Handle the case where plate2_id is None
-    if plate2_id is None:
-        # In this case, we need to determine if this is at a boundary
-        # Let's check if any neighbor is from a different plate
-        neighbors = self.planet.grid.get_vertex_neighbors()[vertex_idx]
-        different_plate_neighbors = []
+    def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
+        """Calculate the type of boundary based on relative plate motion"""
+        # Handle the case where plate2_id is None
+        if plate2_id is None:
+            # In this case, we need to determine if this is at a boundary
+            # Let's check if any neighbor is from a different plate
+            neighbors = self.planet.grid.get_vertex_neighbors()[vertex_idx]
+            different_plate_neighbors = []
+            
+            for n in neighbors:
+                if self.planet.plate_ids[n] != plate1_id and self.planet.plate_ids[n] != -1 and self.planet.plate_ids[n] < len(self.plates):
+                    different_plate_neighbors.append(n)
+            
+            if not different_plate_neighbors:
+                # No different plate neighbors, not a boundary
+                return "none"
+            
+            # Use the first different neighbor as plate2
+            plate2_id = self.planet.plate_ids[different_plate_neighbors[0]]
         
-        for n in neighbors:
-            if self.planet.plate_ids[n] != plate1_id and self.planet.plate_ids[n] != -1 and self.planet.plate_ids[n] < len(self.plates):
-                different_plate_neighbors.append(n)
+        # Get plate velocities
+        v1 = self.plates[plate1_id]['velocity']
+        v2 = self.plates[plate2_id]['velocity']
         
-        if not different_plate_neighbors:
-            # No different plate neighbors, not a boundary
-            return "none"
+        # Calculate relative velocity
+        rel_velocity = v1 - v2
         
-        # Use the first different neighbor as plate2
-        plate2_id = self.planet.plate_ids[different_plate_neighbors[0]]
-    
-    # Get plate velocities
-    v1 = self.plates[plate1_id]['velocity']
-    v2 = self.plates[plate2_id]['velocity']
-    
-    # Calculate relative velocity
-    rel_velocity = v1 - v2
-    
-    # Get normal vector to boundary
-    normal = self.planet.grid.vertices[vertex_idx] / np.linalg.norm(self.planet.grid.vertices[vertex_idx])
-    
-    # Dot product tells us if plates are converging or diverging
-    convergence = -np.dot(rel_velocity, normal)
-    
-    # Calculate tangential component for transform motion
-    tangential = rel_velocity - convergence * normal
-    tangential_mag = np.linalg.norm(tangential)
-    
-    # Determine boundary type based on motion components
-    if abs(convergence) < 0.001 and tangential_mag > 0.001:
-        return "transform"
-    elif convergence < -0.001:
-        return "divergent"
-    elif convergence > 0.001:
-        return "convergent"
-    else:
-        return "complex"  # Mixed or indeterminate motion
+        # Get normal vector to boundary
+        normal = self.planet.grid.vertices[vertex_idx] / np.linalg.norm(self.planet.grid.vertices[vertex_idx])
+        
+        # Dot product tells us if plates are converging or diverging
+        convergence = -np.dot(rel_velocity, normal)
+        
+        # Calculate tangential component for transform motion
+        tangential = rel_velocity - convergence * normal
+        tangential_mag = np.linalg.norm(tangential)
+        
+        # Determine boundary type based on motion components
+        if abs(convergence) < 0.001 and tangential_mag > 0.001:
+            return "transform"
+        elif convergence < -0.001:
+            return "divergent"
+        elif convergence > 0.001:
+            return "convergent"
+        else:
+            return "complex"  # Mixed or indeterminate motion
     
     def _calculate_boundary_forces(self, vertex_idx, plate1_id, plate2_id, time_step):
         """Calculate precise forces and stress at plate boundaries"""
@@ -869,6 +881,9 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
         # Record state for history
         self._record_state()
         
+        # Clear recent events list (will be filled by functions during this step)
+        self.recent_events = []
+        
         return self
         
     def _update_planet_heat(self, time_step):
@@ -997,6 +1012,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                         # Major earthquake in continental collision zone
                         # Can sometimes cause rapid elevation changes
                         self.planet.elevation[i] += 0.2 * np.random.random()
+                        
+                        # Record a major earthquake event
+                        if np.random.random() < 0.2:  # Only record some of them to avoid spamming
+                            x, y, z = self.planet.grid.vertices[i]
+                            lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[i])) * 180 / np.pi
+                            lon = np.arctan2(y, x) * 180 / np.pi
+                            self._add_event(f"Major earthquake at convergent boundary (lat: {lat:.1f}, lon: {lon:.1f})")
     
     def _handle_convergent_boundary(self, vertex_idx, plate1_id, plate2_id, time_step):
         """
@@ -1084,6 +1106,16 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
             # Add to orogenic belts (mountain building regions)
             if plate2_id not in plate1['features']['orogenic_belts']:
                 plate1['features']['orogenic_belts'].append(plate2_id)
+                
+                # Add event for new mountain range
+                if np.random.random() < 0.5:  # 50% chance to record this event
+                    # Get location in lat/lon for better descriptions
+                    x, y, z = self.planet.grid.vertices[vertex_idx]
+                    lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[vertex_idx])) * 180 / np.pi
+                    lon = np.arctan2(y, x) * 180 / np.pi
+                    
+                    self._add_event(f"New mountain range forming from continental collision at lat: {lat:.1f}, lon: {lon:.1f}")
+            
             if plate1_id not in plate2['features']['orogenic_belts']:
                 plate2['features']['orogenic_belts'].append(plate1_id)
         
@@ -1161,6 +1193,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                     # Add volcanic arc to features
                     if subducting_plate['id'] not in overriding_plate['features']['volcanic_arcs']:
                         overriding_plate['features']['volcanic_arcs'].append(subducting_plate['id'])
+                        
+                        # Add event for new volcanic arc
+                        x, y, z = self.planet.grid.vertices[v]
+                        lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[v])) * 180 / np.pi
+                        lon = np.arctan2(y, x) * 180 / np.pi
+                        
+                        self._add_event(f"Volcanic arc forming at subduction zone near lat: {lat:.1f}, lon: {lon:.1f}")
             
             # Create back-arc basin with certain probability
             # Older subduction zones often develop back-arc spreading
@@ -1192,6 +1231,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                     
                     # Reset age for new arc material
                     self.crust_age[other_plate_vertex] = 0
+                    
+                    # Record island arc formation
+                    x, y, z = self.planet.grid.vertices[other_plate_vertex]
+                    lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[other_plate_vertex])) * 180 / np.pi
+                    lon = np.arctan2(y, x) * 180 / np.pi
+                    
+                    self._add_event(f"Island arc forming at oceanic-oceanic subduction zone near lat: {lat:.1f}, lon: {lon:.1f}")
             else:
                 # Plate 2 subducts
                 self.planet.elevation[other_plate_vertex] -= 1.0 * time_step / 10.0
@@ -1209,6 +1255,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                     
                     # Reset age for new arc material
                     self.crust_age[vertex_idx] = 0
+                    
+                    # Record island arc formation
+                    x, y, z = self.planet.grid.vertices[vertex_idx]
+                    lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[vertex_idx])) * 180 / np.pi
+                    lon = np.arctan2(y, x) * 180 / np.pi
+                    
+                    self._add_event(f"Island arc forming at oceanic-oceanic subduction zone near lat: {lat:.1f}, lon: {lon:.1f}")
             
             # Record the subduction relationship
             if overriding_plate['id'] not in subducting_plate['features']['volcanic_arcs']:
@@ -1216,7 +1269,12 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
     
     def _create_back_arc_basin(self, trench_vertex, overriding_plate_id, distance):
         """Create a back-arc basin behind a volcanic arc"""
-        print(f"Creating back-arc basin at {self.planet.age} million years.")
+        # Get location in lat/lon for event description
+        x, y, z = self.planet.grid.vertices[trench_vertex]
+        lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[trench_vertex])) * 180 / np.pi
+        lon = np.arctan2(y, x) * 180 / np.pi
+        
+        self._add_event(f"Back-arc basin forming near lat: {lat:.1f}, lon: {lon:.1f}")
         
         # Find potential basin locations
         basin_vertices = []
@@ -1332,10 +1390,19 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                         self.crust_age[vertex_idx] = 0  # New crust
                         self.planet.elevation[vertex_idx] = -1.5  # Initial seafloor depth
                         
-                        # Add to rifts feature
-                        if plate1_id not in self.plates[plate2_id]['features']['rifts']:
+                        # Add to rifts feature and record event
+                        if rift_stage == 2 and plate1_id not in self.plates[plate2_id]['features']['rifts']:
+                            # Only record when a continental rift first becomes oceanic
                             self.plates[plate2_id]['features']['rifts'].append(plate1_id)
-                        if plate2_id not in self.plates[plate1_id]['features']['rifts']:
+                            
+                            # Get location for event
+                            x, y, z = self.planet.grid.vertices[vertex_idx]
+                            lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[vertex_idx])) * 180 / np.pi
+                            lon = np.arctan2(y, x) * 180 / np.pi
+                            
+                            self._add_event(f"Continental rift opening to form new ocean basin at lat: {lat:.1f}, lon: {lon:.1f}")
+                        
+                        if rift_stage == 2 and plate2_id not in self.plates[plate1_id]['features']['rifts']:
                             self.plates[plate1_id]['features']['rifts'].append(plate2_id)
         
         # Case 2: Seafloor spreading
@@ -1348,7 +1415,7 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
             if spreading_rate <= 5.0:  # Slow spreading
                 # Slow spreading has rough topography, deep rift valleys
                 self.planet.elevation[vertex_idx] = -2.5 + 0.5 * np.random.random()
-            else:  # Fast spreading
+else:  # Fast spreading
                 # Fast spreading has smooth topography, shallow axial high
                 self.planet.elevation[vertex_idx] = -2.0 + 0.5 * np.random.random()
     
@@ -1396,6 +1463,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                     else:  # Push-up range
                         # Small uplift (typically 0.5-1 km high)
                         self.planet.elevation[vertex_idx] += 0.3 * np.random.random()
+                        
+                    # Record significant transform fault activity
+                    if np.random.random() < 0.3:  # 30% chance to record this event
+                        x, y, z = self.planet.grid.vertices[vertex_idx]
+                        lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[vertex_idx])) * 180 / np.pi
+                        lon = np.arctan2(y, x) * 180 / np.pi
+                        self._add_event(f"Major transform fault activity at lat: {lat:.1f}, lon: {lon:.1f}")
                 else:  # Slow slip
                     # Minor terrain modifications
                     if np.random.random() < 0.3:
@@ -1496,6 +1570,13 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                                 # Add hotspot to plate features
                                 if hotspot not in self.plates[plate_id]['features']['hotspots']:
                                     self.plates[plate_id]['features']['hotspots'].append(hotspot)
+                                
+                                # Record hotspot island formation
+                                x, y, z = vertex
+                                lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
+                                lon = np.arctan2(y, x) * 180 / np.pi
+                                
+                                self._add_event(f"Hotspot volcanic island forming at lat: {lat:.1f}, lon: {lon:.1f}")
                             else:
                                 # Seamount (underwater volcano)
                                 self.planet.elevation[i] += 1.0 + 2.0 * np.random.random()
@@ -1539,7 +1620,11 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
                 'track': []
             })
             
-            print(f"New mantle plume formed at {self.planet.age + time_step} million years.")
+            # Record new plume formation
+            lat = np.arcsin(z) * 180 / np.pi
+            lon = np.arctan2(y, x) * 180 / np.pi
+            
+            self._add_event(f"New mantle plume formed near lat: {lat:.1f}, lon: {lon:.1f}")
         
         # Old plumes can die out
         for i in range(len(self.mantle_plumes) - 1, -1, -1):
@@ -1549,67 +1634,74 @@ def _calculate_boundary_type(self, vertex_idx, plate1_id, plate2_id):
             if plume['age'] > 100:  # Plumes typically last 100-200 Myr
                 # 5% chance of dying per 10 My after reaching 100 My age
                 if np.random.random() < 0.05 * time_step / 10.0:
+                    # Get location for event
+                    x, y, z = plume['center']
+                    lat = np.arcsin(z / np.linalg.norm(plume['center'])) * 180 / np.pi
+                    lon = np.arctan2(y, x) * 180 / np.pi
+                    
+                    self._add_event(f"Mantle plume died near lat: {lat:.1f}, lon: {lon:.1f}")
+                    
                     # Remove the plume and its hotspot
                     del self.mantle_plumes[i]
-                    del self.hotspots[i]
-                    print(f"Mantle plume died at {self.planet.age + time_step} million years.")
+                    if i < len(self.hotspots):  # Safety check
+                        del self.hotspots[i]
     
-def _age_crust(self, time_step):
-    """
-    Age the crust and apply scientific processes related to aging
-    
-    Parameters:
-    - time_step: Time step in million years
-    """
-    # Age all crust
-    self.crust_age += time_step
-    
-    # Process oceanic crust - it subducts after about 180-200 My
-    # In reality, the oldest oceanic crust on Earth is only about 180-200 million years old
-    for i in range(len(self.crust_age)):
-        if self.crust_type[i] == 0:  # Oceanic crust
-            # Maximum age based on oceanic crust lifespan parameter
-            if self.crust_age[i] > self.OCEANIC_CRUST_LIFESPAN_MAX:
-                # Very old oceanic crust has higher chance to begin subduction
-                if np.random.random() < 0.2 * time_step / 10.0:
-                    # Create a new trench or deepen existing
-                    self.planet.elevation[i] -= 1.0 * np.random.random()
-                    
-                    # Increase density to promote subduction
-                    self.crust_density[i] += 0.05
-    
-    # New crust at divergent boundaries remains young
-    for i, is_boundary in enumerate(self.plate_boundaries):
-        if not is_boundary:
-            continue
+    def _age_crust(self, time_step):
+        """
+        Age the crust and apply scientific processes related to aging
+        
+        Parameters:
+        - time_step: Time step in million years
+        """
+        # Age all crust
+        self.crust_age += time_step
+        
+        # Process oceanic crust - it subducts after about 180-200 My
+        # In reality, the oldest oceanic crust on Earth is only about 180-200 million years old
+        for i in range(len(self.crust_age)):
+            if self.crust_type[i] == 0:  # Oceanic crust
+                # Maximum age based on oceanic crust lifespan parameter
+                if self.crust_age[i] > self.OCEANIC_CRUST_LIFESPAN_MAX:
+                    # Very old oceanic crust has higher chance to begin subduction
+                    if np.random.random() < 0.2 * time_step / 10.0:
+                        # Create a new trench or deepen existing
+                        self.planet.elevation[i] -= 1.0 * np.random.random()
+                        
+                        # Increase density to promote subduction
+                        self.crust_density[i] += 0.05
+        
+        # New crust at divergent boundaries remains young
+        for i, is_boundary in enumerate(self.plate_boundaries):
+            if not is_boundary:
+                continue
+                
+            plate_id = self.planet.plate_ids[i]
             
-        plate_id = self.planet.plate_ids[i]
-        
-        # Skip if vertex isn't assigned to a plate
-        if plate_id == -1 or plate_id >= len(self.plates):
-            continue
-        
-        # Find a neighbor from a different plate
-        neighbors = self.planet.grid.get_vertex_neighbors()[i]
-        different_plate_neighbor = None
-        
-        for n in neighbors:
-            if self.planet.plate_ids[n] != plate_id and self.planet.plate_ids[n] != -1 and self.planet.plate_ids[n] < len(self.plates):
-                different_plate_neighbor = n
-                break
-        
-        if different_plate_neighbor is not None:
-            neighbor_plate_id = self.planet.plate_ids[different_plate_neighbor]
-            # Check boundary type
-            boundary_type = self._calculate_boundary_type(i, plate_id, neighbor_plate_id)
-        else:
-            # No different plate neighbor found
-            boundary_type = "none"
+            # Skip if vertex isn't assigned to a plate
+            if plate_id == -1 or plate_id >= len(self.plates):
+                continue
             
-        if boundary_type == "divergent":
-            if self.crust_type[i] == 0:  # Only oceanic crust gets reset
-                # Reset age at divergent boundaries (new crust forms)
-                self.crust_age[i] = 0
+            # Find a neighbor from a different plate
+            neighbors = self.planet.grid.get_vertex_neighbors()[i]
+            different_plate_neighbor = None
+            
+            for n in neighbors:
+                if self.planet.plate_ids[n] != plate_id and self.planet.plate_ids[n] != -1 and self.planet.plate_ids[n] < len(self.plates):
+                    different_plate_neighbor = n
+                    break
+            
+            if different_plate_neighbor is not None:
+                neighbor_plate_id = self.planet.plate_ids[different_plate_neighbor]
+                # Check boundary type
+                boundary_type = self._calculate_boundary_type(i, plate_id, neighbor_plate_id)
+            else:
+                # No different plate neighbor found
+                boundary_type = "none"
+                
+            if boundary_type == "divergent":
+                if self.crust_type[i] == 0:  # Only oceanic crust gets reset
+                    # Reset age at divergent boundaries (new crust forms)
+                    self.crust_age[i] = 0
 
     def _check_for_supercontinent_cycle(self, time_step):
         """Check for supercontinent cycles and handle major tectonic events"""
@@ -1646,7 +1738,7 @@ def _age_crust(self, time_step):
                 time_since_breakup = self.planet.age - self.last_supercontinent_breakup
                 
                 if time_since_breakup > 300 and np.random.random() < 0.05 * time_step / 10.0:
-                    print(f"Major tectonic event: Supercontinent breakup at {self.planet.age} million years")
+                    self._add_event(f"Major tectonic event: Supercontinent breakup at {self.planet.age} million years")
                     self._initiate_supercontinent_breakup(mean_pos)
                     
                     # Record this breakup
@@ -1662,7 +1754,7 @@ def _age_crust(self, time_step):
             if plate['area'] > 0.25:  # 25% of planet surface
                 # 30% chance to break up over 10 My
                 if np.random.random() < 0.03 * time_step:
-                    print(f"Major tectonic event: Breaking up large plate {plate['id']}")
+                    self._add_event(f"Major tectonic event: Breaking up large plate {plate['id']}")
                     self._break_plate(plate)
                     return  # Only one major event per step
         
@@ -1673,7 +1765,7 @@ def _age_crust(self, time_step):
             if np.random.random() < 0.02 * time_step:
                 # Choose two small plates to merge
                 p1, p2 = np.random.choice(small_plates, 2, replace=False)
-                print(f"Major tectonic event: Merging small plates {p1['id']} and {p2['id']}")
+                self._add_event(f"Major tectonic event: Merging small plates {p1['id']} and {p2['id']}")
                 self._merge_plates(p1, p2)
                 return  # Only one major event per step
     
@@ -1823,7 +1915,6 @@ def _age_crust(self, time_step):
                 'transform_zones': []  # Transform fault zones
             }
         }
-
         
         # Also adjust the original plate's velocity
         plate['velocity'] = parent_vel - rift_component
@@ -1832,10 +1923,6 @@ def _age_crust(self, time_step):
         
         # Update boundaries
         self._update_plate_boundaries()
-        
-        print(f"Plate {plate['id']} split into plates {plate['id']} and {new_plate_id}")
-        
-        print(f"Plate {plate['id']} split into plates {plate['id']} and {new_plate['id']} along rift")
     
     def _increase_continental_convergence(self):
         """Increase continental convergence to promote supercontinent assembly"""
@@ -1864,73 +1951,505 @@ def _age_crust(self, time_step):
             # Adjust velocity to move more toward mean
             plate['velocity'] = plate['velocity'] * 0.9 + toward_mean
         
-        print(f"Adjusted continental plate motions to promote convergence at {self.planet.age} Ma")
+        self._add_event(f"Adjusted continental plate motions to promote convergence at {self.planet.age} Ma")
     
-# This function fixes the _break_plate method which has errors around line 1779-1784
-def _break_plate(self, plate):
-    """Break a large plate into two smaller plates"""
-    # Create a new plate ID
-    new_plate_id = len(self.plates)
-    
-    # Decide where to split (random great circle)
-    # Choose a random axis as the splitting plane
-    split_axis = np.random.normal(0, 1, 3)
-    split_axis = split_axis / np.linalg.norm(split_axis)
-    
-    # Assign vertices to new plate if they're on one side of the plane
-    new_plate_vertices = []
-    for vertex_idx in plate['vertices']:
-        vertex = self.planet.grid.vertices[vertex_idx]
-        # Check which side of the plane the vertex is on
-        if np.dot(vertex, split_axis) > 0:
-            self.planet.plate_ids[vertex_idx] = new_plate_id
-            new_plate_vertices.append(vertex_idx)
-    
-    # Remove these vertices from the original plate
-    plate['vertices'] = [v for v in plate['vertices'] if v not in new_plate_vertices]
-    
-    # Update plate area
-    plate['area'] = len(plate['vertices']) / len(self.planet.grid.vertices)
-    
-    # Create the new plate
-    # Calculate center
-    center_pos = np.zeros(3)
-    for vertex_idx in new_plate_vertices:
-        center_pos += self.planet.grid.vertices[vertex_idx]
-    center_pos /= len(new_plate_vertices)
-    center_pos = center_pos / np.linalg.norm(center_pos)
-    
-    # Determine if plate is oceanic (based on crust type)
-    continental_count = sum(1 for v in new_plate_vertices if self.crust_type[v] == 1)
-    is_oceanic = continental_count < len(new_plate_vertices) / 2
-    
-    # Create velocity similar to parent but with some deviation
-    parent_vel = plate['velocity']
-    new_vel = parent_vel + np.random.normal(0, 0.002, 3)
-    
-    # Create the new plate
-    new_plate = {
-        'id': new_plate_id,
-        'center': center_pos,
-        'vertices': new_plate_vertices,
-        'is_oceanic': is_oceanic,
-        'velocity': new_vel,
-        'area': len(new_plate_vertices) / len(self.planet.grid.vertices),
-        'age': plate['age'],
-        'continental_percentage': continental_count / len(new_plate_vertices) * 100,
-        'boundaries': [],
-        'features': {
-            'orogenic_belts': [],  # Mountain ranges
-            'rifts': [],           # Spreading centers
-            'volcanic_arcs': [],   # Subduction volcanoes
-            'hotspots': [],        # Intraplate volcanic centers
-            'transform_zones': []  # Transform fault zones
+    def _break_plate(self, plate):
+        """Break a large plate into two smaller plates"""
+        # Create a new plate ID
+        new_plate_id = len(self.plates)
+        
+        # Decide where to split (random great circle)
+        # Choose a random axis as the splitting plane
+        split_axis = np.random.normal(0, 1, 3)
+        split_axis = split_axis / np.linalg.norm(split_axis)
+        
+        # Assign vertices to new plate if they're on one side of the plane
+        new_plate_vertices = []
+        remaining_vertices = []
+        
+        for vertex_idx in plate['vertices']:
+            vertex = self.planet.grid.vertices[vertex_idx]
+            # Check which side of the plane the vertex is on
+            if np.dot(vertex, split_axis) > 0:
+                self.planet.plate_ids[vertex_idx] = new_plate_id
+                new_plate_vertices.append(vertex_idx)
+            else:
+                remaining_vertices.append(vertex_idx)
+        
+        # Make sure we have vertices in both plates
+        if len(new_plate_vertices) == 0 or len(remaining_vertices) == 0:
+            return  # Can't split, skip this operation
+        
+        # Update the original plate
+        plate['vertices'] = remaining_vertices
+        plate['area'] = len(remaining_vertices) / len(self.planet.grid.vertices)
+        
+        # Update continental percentage for original plate
+        continental_count = sum(1 for v in remaining_vertices if self.crust_type[v] == 1)
+        plate['continental_percentage'] = continental_count / len(remaining_vertices) * 100 if remaining_vertices else 0
+        
+        # Calculate center for new plate
+        center_pos = np.zeros(3)
+        for vertex_idx in new_plate_vertices:
+            center_pos += self.planet.grid.vertices[vertex_idx]
+        center_pos /= len(new_plate_vertices)
+        center_pos = center_pos / np.linalg.norm(center_pos)
+        
+        # Determine if new plate is oceanic
+        continental_count = sum(1 for v in new_plate_vertices if self.crust_type[v] == 1)
+        is_oceanic = continental_count < len(new_plate_vertices) / 2
+        
+        # Create velocity similar to parent but with some deviation
+        parent_vel = np.array(plate['velocity'])
+        new_vel = parent_vel + np.random.normal(0, 0.002, 3)
+        
+        # Create the new plate
+        new_plate = {
+            'id': new_plate_id,
+            'center': center_pos,
+            'vertices': new_plate_vertices,
+            'is_oceanic': is_oceanic,
+            'velocity': new_vel,
+            'area': len(new_plate_vertices) / len(self.planet.grid.vertices),
+            'age': plate['age'],
+            'continental_percentage': continental_count / len(new_plate_vertices) * 100,
+            'boundaries': [],
+            'features': {
+                'orogenic_belts': [],  # Mountain ranges
+                'rifts': [],           # Spreading centers
+                'volcanic_arcs': [],   # Subduction volcanoes
+                'hotspots': [],        # Intraplate volcanic centers
+                'transform_zones': []  # Transform fault zones
+            }
         }
-    }
+        
+        self.plates.append(new_plate)
+        
+        # Update boundaries
+        self._update_plate_boundaries()
+        
+        self._add_event(f"Plate {plate['id']} split into plates {plate['id']} and {new_plate_id}")
+        
+    def _merge_plates(self, plate1, plate2):
+        """Merge two plates into one (smaller one gets absorbed)"""
+        # Determine which plate absorbs the other
+        if len(plate1['vertices']) >= len(plate2['vertices']):
+            main_plate = plate1
+            absorbed_plate = plate2
+        else:
+            main_plate = plate2
+            absorbed_plate = plate1
+        
+        # Update plate IDs for all vertices in the absorbed plate
+        for vertex_idx in absorbed_plate['vertices']:
+            self.planet.plate_ids[vertex_idx] = main_plate['id']
+        
+        # Add vertices to the main plate
+        main_plate['vertices'].extend(absorbed_plate['vertices'])
+        
+        # Update main plate properties
+        main_plate['area'] = len(main_plate['vertices']) / len(self.planet.grid.vertices)
+        
+        # Update continental percentage
+        continental_count = sum(1 for v in main_plate['vertices'] if self.crust_type[v] == 1)
+        main_plate['continental_percentage'] = continental_count / len(main_plate['vertices']) * 100
+        
+        # Update center of mass
+        center_pos = np.zeros(3)
+        for vertex_idx in main_plate['vertices']:
+            center_pos += self.planet.grid.vertices[vertex_idx]
+        center_pos /= len(main_plate['vertices'])
+        main_plate['center'] = center_pos / np.linalg.norm(center_pos)
+        
+        # Modify velocity (weighted average)
+        weight1 = len(plate1['vertices']) / (len(plate1['vertices']) + len(plate2['vertices']))
+        weight2 = 1.0 - weight1
+        main_plate['velocity'] = (weight1 * np.array(plate1['velocity']) + 
+                               weight2 * np.array(plate2['velocity']))
+        
+        # Remove the absorbed plate from the plates list
+        self.plates = [p for p in self.plates if p['id'] != absorbed_plate['id']]
+        
+        # Update boundaries
+        self._update_plate_boundaries()
+        
+        self._add_event(f"Plates {plate1['id']} and {plate2['id']} merged")
     
-    self.plates.append(new_plate)
+    def _record_state(self):
+        """Record the current state of the planet for history tracking"""
+        self.history['ages'].append(self.planet.age)
+        
+        # Record plate positions and velocities
+        plate_positions = []
+        plate_velocities = []
+        
+        for plate in self.plates:
+            plate_positions.append(plate['center'])
+            plate_velocities.append(plate['velocity'])
+        
+        self.history['plate_positions'].append(plate_positions)
+        self.history['plate_velocities'].append(plate_velocities)
+        
+        # Track elevation extremes
+        self.history['elevations'].append([float(np.min(self.planet.elevation)), 
+                                        float(np.max(self.planet.elevation))])
+        
+        # Count number of plates
+        self.history['plate_counts'].append(len(self.plates))
+        
+        # Calculate continental area
+        continental_vertices = np.sum(self.crust_type == 1)
+        continental_area = continental_vertices / len(self.crust_type) * 100
+        self.history['continental_area'].append(float(continental_area))
     
-    # Update boundaries
-    self._update_plate_boundaries()
+    def _add_event(self, description):
+        """Record a significant geological event"""
+        event = {
+            'age': float(self.planet.age),
+            'description': description,
+            'timestamp': datetime.datetime.now().isoformat()
+        }
+        
+        # Add to both lists
+        self.recent_events.append(event)
+        self.all_events.append(event)
+        
+        # Limit total events stored to avoid memory issues
+        if len(self.all_events) > 1000:
+            self.all_events = self.all_events[-1000:]
     
-    print(f"Plate {plate['id']} split into plates {plate['id']} and {new_plate_id}")
+    def get_recent_events(self):
+        """Get list of recent geological events"""
+        return self.recent_events
+    
+    def get_all_events(self):
+        """Get list of all recorded geological events"""
+        return self.all_events
+    
+    def visualize_plates(self, save_path=None, show=False, show_features=False):
+        """
+        Visualize the tectonic plates configuration in 3D.
+        
+        Parameters:
+        - save_path: If provided, save the visualization to this file path
+        - show: Whether to display the plot
+        - show_features: Whether to highlight geological features
+        """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        # Create a unique color for each plate
+        plate_colors = {}
+        for plate in self.plates:
+            hue = (plate['id'] * 0.618033988749895) % 1.0  # Golden ratio produces nicely distributed colors
+            plate_colors[plate['id']] = plt.cm.hsv(hue)
+        
+        # Create arrays for plotting
+        xs, ys, zs = [], [], []
+        colors = []
+        
+        # Map vertices to positions and colors
+        for i, vertex in enumerate(self.planet.grid.vertices):
+            # Apply elevation to position
+            elevation = self.planet.elevation[i]
+            scaled_vertex = vertex * (1 + elevation/self.planet.radius)
+            
+            xs.append(scaled_vertex[0])
+            ys.append(scaled_vertex[1])
+            zs.append(scaled_vertex[2])
+            
+            # Color based on plate ID
+            plate_id = self.planet.plate_ids[i]
+            if plate_id >= 0 and plate_id < len(self.plates):
+                colors.append(plate_colors[plate_id])
+            else:
+                colors.append([0.7, 0.7, 0.7])  # Gray for unassigned
+        
+        # Plot the vertices
+        ax.scatter(xs, ys, zs, c=colors, s=10, alpha=0.8)
+        
+        # Mark plate boundaries
+        if self.plate_boundaries is not None:
+            boundary_xs = []
+            boundary_ys = []
+            boundary_zs = []
+            
+            for i, is_boundary in enumerate(self.plate_boundaries):
+                if is_boundary:
+                    vertex = self.planet.grid.vertices[i]
+                    elevation = self.planet.elevation[i]
+                    scaled_vertex = vertex * (1 + elevation/self.planet.radius)
+                    
+                    boundary_xs.append(scaled_vertex[0])
+                    boundary_ys.append(scaled_vertex[1])
+                    boundary_zs.append(scaled_vertex[2])
+            
+            ax.scatter(boundary_xs, boundary_ys, boundary_zs, c='black', s=15, alpha=0.5)
+        
+        # Show plate motion vectors if requested
+        if show_features:
+            for plate in self.plates:
+                # Get the plate center and velocity
+                center = np.array(plate['center']) * self.planet.radius
+                vel = np.array(plate['velocity']) * self.planet.radius * 20  # Scale for visibility
+                
+                # Plot the velocity vector
+                ax.quiver(center[0], center[1], center[2], 
+                        vel[0], vel[1], vel[2], 
+                        color='red', length=1.0, normalize=True, arrow_length_ratio=0.3)
+                
+                # Mark special features
+                for feature_type, features in plate['features'].items():
+                    if not features:
+                        continue
+                        
+                    if feature_type == 'orogenic_belts':
+                        # Mark mountain ranges
+                        for other_plate_id in features:
+                            # Find mountain vertices at the boundary between plates
+                            for i, is_boundary in enumerate(self.plate_boundaries):
+                                if is_boundary and self.planet.plate_ids[i] == plate['id']:
+                                    # Check if this is a boundary with the other plate
+                                    neighbors = self.planet.grid.get_vertex_neighbors()[i]
+                                    for n in neighbors:
+                                        if self.planet.plate_ids[n] == other_plate_id:
+                                            # This is part of the mountain range
+                                            vertex = self.planet.grid.vertices[i]
+                                            elevation = self.planet.elevation[i]
+                                            scaled_vertex = vertex * (1 + elevation/self.planet.radius)
+                                            
+                                            # Only show if it's actually a mountain
+                                            if elevation > 1.0:
+                                                ax.scatter([scaled_vertex[0]], [scaled_vertex[1]], [scaled_vertex[2]], 
+                                                         color='white', s=20, alpha=0.7, marker='^')
+                                            break
+        
+        # Set equal aspect ratio
+        ax.set_box_aspect([1,1,1])
+        ax.set_axis_off()
+        
+        # Add title
+        plt.title(f'Tectonic Plates at {self.planet.age:.1f} million years', fontsize=14)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=200, bbox_inches='tight')
+            
+            if not show:
+                plt.close(fig)
+            print(f"Plate visualization saved to {save_path}")
+            
+        if show:
+            plt.show()
+        
+        return save_path if save_path else None
+    
+    def visualize_plates_2d(self, save_path=None, show=False, projection='equirectangular', show_features=False):
+        """
+        Visualize tectonic plates as a 2D map projection.
+        
+        Parameters:
+        - save_path: If provided, save the visualization to this file path
+        - show: Whether to display the plot
+        - projection: Map projection ('equirectangular', 'mollweide', 'orthographic')
+        - show_features: Whether to highlight geological features
+        """
+        import matplotlib.pyplot as plt
+        import cartopy.crs as ccrs
+        
+        # Set up the projection
+        if projection == 'equirectangular':
+            proj = ccrs.PlateCarree()
+        elif projection == 'mollweide':
+            proj = ccrs.Mollweide()
+        elif projection == 'orthographic':
+            proj = ccrs.Orthographic(central_longitude=0, central_latitude=30)
+        else:
+            proj = ccrs.PlateCarree()  # Default
+        
+        # Create figure and axis
+        fig = plt.figure(figsize=(12, 6))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        
+        # Create a unique color for each plate
+        plate_colors = {}
+        for plate in self.plates:
+            hue = (plate['id'] * 0.618033988749895) % 1.0  # Golden ratio
+            plate_colors[plate['id']] = plt.cm.hsv(hue)
+        
+        # Convert 3D coordinates to lat/lon for mapping
+        lats = []
+        lons = []
+        colors = []
+        
+        for i, vertex in enumerate(self.planet.grid.vertices):
+            # Convert to lat/lon
+            x, y, z = vertex
+            lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
+            lon = np.arctan2(y, x) * 180 / np.pi
+            
+            lats.append(lat)
+            lons.append(lon)
+            
+            # Color based on plate ID
+            plate_id = self.planet.plate_ids[i]
+            if plate_id >= 0 and plate_id < len(self.plates):
+                colors.append(plate_colors[plate_id])
+            else:
+                colors.append([0.7, 0.7, 0.7])  # Gray for unassigned
+        
+        # Plot the scattered points
+        ax.scatter(lons, lats, c=colors, s=5, transform=ccrs.PlateCarree(), alpha=0.8)
+        
+        # Mark plate boundaries
+        if self.plate_boundaries is not None:
+            boundary_lats = []
+            boundary_lons = []
+            
+            for i, is_boundary in enumerate(self.plate_boundaries):
+                if is_boundary:
+                    x, y, z = self.planet.grid.vertices[i]
+                    lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[i])) * 180 / np.pi
+                    lon = np.arctan2(y, x) * 180 / np.pi
+                    
+                    boundary_lats.append(lat)
+                    boundary_lons.append(lon)
+            
+            ax.scatter(boundary_lons, boundary_lats, c='black', s=2, 
+                     transform=ccrs.PlateCarree(), alpha=0.5)
+        
+        # Show plate motion vectors and features if requested
+        if show_features:
+            for plate in self.plates:
+                # Get the plate center in lat/lon
+                center = plate['center']
+                x, y, z = center
+                lat = np.arcsin(z / np.linalg.norm(center)) * 180 / np.pi
+                lon = np.arctan2(y, x) * 180 / np.pi
+                
+                # Draw velocity arrow
+                vel = plate['velocity']
+                # Convert 3D velocity to lat/lon components (simplified)
+                vel_mag = np.linalg.norm(vel) * 10000  # Scale for visibility
+                
+                # Mark plate center and ID
+                ax.plot(lon, lat, 'ro', markersize=4, transform=ccrs.PlateCarree())
+                ax.text(lon, lat, str(plate['id']), transform=ccrs.PlateCarree(), 
+                      fontsize=8, color='white', ha='center', va='center')
+        
+        # Add gridlines for reference
+        gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.5)
+        
+        # Add title
+        plt.title(f'Tectonic Plates at {self.planet.age:.1f} million years', fontsize=14)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=200, bbox_inches='tight')
+            
+            if not show:
+                plt.close(fig)
+            print(f"2D plate visualization saved to {save_path}")
+            
+        if show:
+            plt.show()
+        
+        return save_path if save_path else None
+    
+    def visualize_history(self, save_path=None, show=False):
+        """
+        Visualize the history of tectonic evolution.
+        
+        Parameters:
+        - save_path: If provided, save the visualization to this file path
+        - show: Whether to display the plot
+        """
+        import matplotlib.pyplot as plt
+        
+        # Check if we have enough history data
+        if len(self.history['ages']) < 2:
+            print("Not enough history data for visualization.")
+            return None
+        
+        # Create figure with multiple subplots
+        fig, axes = plt.subplots(3, 1, figsize=(12, 15), sharex=True)
+        
+        # Plot 1: Elevation extremes
+        elevations = np.array(self.history['elevations'])
+        axes[0].fill_between(self.history['ages'], elevations[:, 0], elevations[:, 1], 
+                           color='skyblue', alpha=0.5)
+        axes[0].plot(self.history['ages'], elevations[:, 0], 'b-', label='Minimum elevation')
+        axes[0].plot(self.history['ages'], elevations[:, 1], 'r-', label='Maximum elevation')
+        axes[0].set_ylabel('Elevation (km)')
+        axes[0].set_title('Elevation Range Over Time')
+        axes[0].legend()
+        axes[0].grid(True, alpha=0.3)
+        
+        # Plot 2: Number of plates and continental area
+        ax2 = axes[1]
+        ax2.plot(self.history['ages'], self.history['plate_counts'], 'g-', label='Number of plates')
+        ax2.set_ylabel('Number of plates', color='g')
+        ax2.tick_params(axis='y', labelcolor='g')
+        ax2.grid(True, alpha=0.3)
+        
+        # Add continental area on secondary y-axis
+        ax2_twin = ax2.twinx()
+        ax2_twin.plot(self.history['ages'], self.history['continental_area'], 'm-', label='Continental area')
+        ax2_twin.set_ylabel('Continental area (%)', color='m')
+        ax2_twin.tick_params(axis='y', labelcolor='m')
+        
+        # Add combined legend
+        lines1, labels1 = ax2.get_legend_handles_labels()
+        lines2, labels2 = ax2_twin.get_legend_handles_labels()
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+        
+        # Plot 3: Supercontinent index
+        if self.history['supercontinent_index']:
+            axes[2].plot(self.history['ages'], self.history['supercontinent_index'], 'k-')
+            axes[2].set_ylabel('Supercontinent index')
+            axes[2].set_title('Continental Aggregation')
+            axes[2].grid(True, alpha=0.3)
+            
+            # Add horizontal line at supercontinent threshold
+            axes[2].axhline(y=1.0 - self.SUPERCONTINENT_THRESHOLD/np.pi, 
+                          color='r', linestyle='--', alpha=0.5, 
+                          label='Supercontinent threshold')
+            axes[2].legend()
+        
+        # Add events as vertical lines with annotations
+        for i, event in enumerate(self.all_events[-10:]):  # Show last 10 events
+            for ax in axes:
+                ax.axvline(x=event['age'], color='gray', linestyle=':', alpha=0.5)
+            
+            # Add annotation to top subplot, alternating top/bottom for readability
+            y_pos = 0.9 - (i % 3) * 0.1
+            axes[0].annotate(event['description'], 
+                           xy=(event['age'], axes[0].get_ylim()[1] * y_pos),
+                           xytext=(10, 0), textcoords='offset points',
+                           fontsize=8, rotation=90, color='gray')
+        
+        # Add axis labels
+        axes[2].set_xlabel('Age (million years ago)')
+        
+        # Set x-axis to run from oldest to newest
+        for ax in axes:
+            ax.invert_xaxis()
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=200, bbox_inches='tight')
+            
+            if not show:
+                plt.close(fig)
+            print(f"Tectonic history visualization saved to {save_path}")
+            
+        if show:
+            plt.show()
+        
+        return save_path if save_path else None
