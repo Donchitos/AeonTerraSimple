@@ -168,7 +168,7 @@ class Planet:
             elif mode == 'precipitation' and self.precipitation is not None:
                 point_colors.append(self._get_precipitation_color(self.precipitation[i]))
             elif mode == 'biome' and self.biome_ids is not None:
-                from .biome import BiomeClassifier
+                from ..core.biome import BiomeClassifier
                 biome_classifier = BiomeClassifier(self)
                 point_colors.append(biome_classifier.get_biome_color(self.biome_ids[i]))
             elif mode == 'plates' and hasattr(self, 'plate_ids'):

@@ -1415,7 +1415,7 @@ class TectonicSimulation:
             if spreading_rate <= 5.0:  # Slow spreading
                 # Slow spreading has rough topography, deep rift valleys
                 self.planet.elevation[vertex_idx] = -2.5 + 0.5 * np.random.random()
-else:  # Fast spreading
+            else:  # Fast spreading
                 # Fast spreading has smooth topography, shallow axial high
                 self.planet.elevation[vertex_idx] = -2.0 + 0.5 * np.random.random()
     
@@ -1727,9 +1727,6 @@ else:  # Fast spreading
                 distances.append(np.arccos(dot))
             
             dispersion = np.mean(distances)
-            
-            # Track the supercontinent index
-            self.history['supercontinent_index'].append(1.0 - dispersion / np.pi)
             
             # Check if we're in assembly or dispersal phase
             if dispersion < self.SUPERCONTINENT_THRESHOLD:
@@ -2101,6 +2098,30 @@ else:  # Fast spreading
         continental_vertices = np.sum(self.crust_type == 1)
         continental_area = continental_vertices / len(self.crust_type) * 100
         self.history['continental_area'].append(float(continental_area))
+        
+        # Calculate supercontinent index - ADDED/MODIFIED
+        continental_coords = []
+        for i in range(len(self.planet.elevation)):
+            if self.crust_type[i] == 1:  # Continental
+                continental_coords.append(self.planet.grid.vertices[i])
+        
+        # Calculate mean position of all continental crust
+        if continental_coords:
+            mean_pos = np.mean(continental_coords, axis=0)
+            mean_pos = mean_pos / np.linalg.norm(mean_pos)
+            
+            # Calculate average distance from mean
+            distances = []
+            for pos in continental_coords:
+                norm_pos = pos / np.linalg.norm(pos)
+                dot = np.clip(np.dot(norm_pos, mean_pos), -1.0, 1.0)
+                distances.append(np.arccos(dot))
+            
+            dispersion = np.mean(distances)
+            self.history['supercontinent_index'].append(1.0 - dispersion / np.pi)
+        else:
+            # No continental crust, use default value
+            self.history['supercontinent_index'].append(0.0)
     
     def _add_event(self, description):
         """Record a significant geological event"""
@@ -2262,11 +2283,11 @@ else:  # Fast spreading
         import cartopy.crs as ccrs
         
         # Set up the projection
-        if projection == 'equirectangular':
+        if (projection == 'equirectangular'):
             proj = ccrs.PlateCarree()
-        elif projection == 'mollweide':
+        elif (projection == 'mollweide'):
             proj = ccrs.Mollweide()
-        elif projection == 'orthographic':
+        elif (projection == 'orthographic'):
             proj = ccrs.Orthographic(central_longitude=0, central_latitude=30)
         else:
             proj = ccrs.PlateCarree()  # Default
