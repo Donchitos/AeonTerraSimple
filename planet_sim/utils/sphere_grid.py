@@ -1,5 +1,3 @@
-# planet_sim/utils/sphere_grid.py
-
 import numpy as np
 
 class SphericalGrid:

@@ -155,16 +155,17 @@ class ClimateSimulation:
                     precip_adjusted[i] *= 0.6
             
             # River valleys are wetter and moderate temperature
-            for river in self.planet.rivers:
-                if i in river:
-                    # Increase precipitation near rivers
-                    precip_adjusted[i] *= 1.2
-                    
-                    # Moderate temperature (cooler in summer, warmer in winter)
-                    if self.planet.temperature[i] > 20:
-                        temp_adjusted[i] -= 2  # Cooling effect in hot areas
-                    elif self.planet.temperature[i] < 0:
-                        temp_adjusted[i] += 2  # Warming effect in cold areas
+            if hasattr(self.planet, 'rivers'):
+                for river in self.planet.rivers:
+                    if i in river:
+                        # Increase precipitation near rivers
+                        precip_adjusted[i] *= 1.2
+                        
+                        # Moderate temperature (cooler in summer, warmer in winter)
+                        if self.planet.temperature[i] > 20:
+                            temp_adjusted[i] -= 2  # Cooling effect in hot areas
+                        elif self.planet.temperature[i] < 0:
+                            temp_adjusted[i] += 2  # Warming effect in cold areas
         
         # Apply adjusted values
         self.planet.temperature = temp_adjusted

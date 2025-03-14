@@ -1,18 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import cm
 import os
 import json
 from PIL import Image
-import struct
 import math
 import datetime
-from .map_visualizer import MapVisualizer
 
 class ExportManager:
     """
-    Enhanced class for exporting planet data to various formats.
-    Handles heightmaps, climate data, biome maps, and game engine exports.
+    Handles exporting planet data to various formats.
+    Includes heightmaps, climate maps, and game engine exports.
     """
     
     def __init__(self, planet):
@@ -24,82 +21,82 @@ class ExportManager:
         """
         self.planet = planet
         self.export_history = []
-        self.visualizer = MapVisualizer(planet)
     
-def export_heightmap(self, output_path, width=2048, height=1024, 
-                     region=None, format='png', bit_depth=16,
-                     add_metadata=True, scaling_factor=1.0):
-    """
-    Export a heightmap of the planet's terrain using enhanced visualization.
-    
-    Parameters:
-    - output_path: Path to save the heightmap
-    - width, height: Dimensions of the output image
-    - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
-    - format: Output format ('png', 'raw', 'tiff')
-    - bit_depth: Bit depth for the heightmap (8 or 16)
-    - add_metadata: Whether to add a JSON metadata file
-    - scaling_factor: Vertical exaggeration factor
-    
-    Returns:
-    - Path to the exported heightmap
-    """
-    # Use the visualizer to export the heightmap
-    projection = 'mercator' if region else 'equirectangular'
-    
-    path = self.visualizer.export_heightmap(
-        output_path, 
-        width=width, 
-        height=height, 
-        projection=projection,
-        format=format, 
-        bit_depth=bit_depth,
-        region=region
-    )
-    
-    # Add metadata file if requested
-    if add_metadata:
-        min_elevation = float(self.planet.elevation.min())
-        max_elevation = float(self.planet.elevation.max())
+    def export_heightmap(self, output_path, width=2048, height=1024, 
+                         region=None, format='png', bit_depth=16,
+                         add_metadata=True, scaling_factor=1.0):
+        """
+        Export a heightmap of the planet's terrain.
         
-        if region:
-            projection = 'mercator'
-            lat_min, lon_min, lat_max, lon_max = region
+        Parameters:
+        - output_path: Path to save the heightmap
+        - width, height: Dimensions of the output image
+        - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
+        - format: Output format ('png', 'raw', 'tiff')
+        - bit_depth: Bit depth for the heightmap (8 or 16)
+        - add_metadata: Whether to add a JSON metadata file
+        - scaling_factor: Vertical exaggeration factor
+        
+        Returns:
+        - Path to the exported heightmap
+        """
+        # Generate heightmap
+        heightmap = self._generate_heightmap_grid(width, height, region, scaling_factor)
+        
+        # Export based on format
+        if format == 'png':
+            self._export_png_heightmap(heightmap, output_path, bit_depth)
+        elif format == 'raw':
+            self._export_raw_heightmap(heightmap, output_path, bit_depth)
+        elif format == 'tiff':
+            self._export_tiff_heightmap(heightmap, output_path, bit_depth)
         else:
-            projection = 'equirectangular'
-            lat_min, lon_min, lat_max, lon_max = -90, -180, 90, 180
-            
-        metadata = {
-            "width": width,
-            "height": height,
-            "min_elevation_km": min_elevation,
-            "max_elevation_km": max_elevation,
-            "scale_factor": float(scaling_factor),
-            "projection": projection,
-            "bit_depth": bit_depth,
-            "region": {
-                "lat_min": lat_min, 
-                "lon_min": lon_min, 
-                "lat_max": lat_max, 
-                "lon_max": lon_max
-            } if region else None
-        }
+            raise ValueError(f"Unsupported format: {format}")
         
-        metadata_path = os.path.splitext(output_path)[0] + '.json'
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
-    
-    # Record this export
-    self.export_history.append({
-        "type": "heightmap",
-        "path": output_path,
-        "dimensions": [width, height],
-        "format": format,
-        "projection": projection,
-        "region": region
-    })
-    
-    return path
+        # Add metadata file if requested
+        if add_metadata:
+            min_elevation = float(np.min(self.planet.elevation))
+            max_elevation = float(np.max(self.planet.elevation))
+            
+            if region:
+                projection = 'mercator'
+                lat_min, lon_min, lat_max, lon_max = region
+            else:
+                projection = 'equirectangular'
+                lat_min, lon_min, lat_max, lon_max = -90, -180, 90, 180
+                
+            metadata = {
+                "width": width,
+                "height": height,
+                "min_elevation_km": min_elevation,
+                "max_elevation_km": max_elevation,
+                "scale_factor": float(scaling_factor),
+                "projection": projection,
+                "bit_depth": bit_depth,
+                "region": {
+                    "lat_min": lat_min, 
+                    "lon_min": lon_min, 
+                    "lat_max": lat_max, 
+                    "lon_max": lon_max
+                } if region else None
+            }
+            
+            metadata_path = os.path.splitext(output_path)[0] + '.json'
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+        
+        # Record this export
+        self.export_history.append({
+            "type": "heightmap",
+            "path": output_path,
+            "dimensions": [width, height],
+            "format": format,
+            "projection": "mercator" if region else "equirectangular",
+            "region": region
+        })
+        
+        print(f"Heightmap exported to {output_path}")
+        return output_path
     
     def _generate_heightmap_grid(self, width, height, region=None, scaling_factor=1.0):
         """Generate a heightmap grid from the planet's elevation data"""
@@ -205,43 +202,58 @@ def export_heightmap(self, output_path, width=2048, height=1024,
         # Save image as TIFF
         img.save(output_path, format='TIFF')
     
-   def export_climate_map(self, output_path, data_type='temperature', 
-                       width=2048, height=1024, region=None, 
-                       colormap='viridis', bit_depth=8):
-    """
-    Export a climate data map using enhanced visualization.
-    """
-    # Use the visualizer for climate maps
-    if data_type == 'temperature':
-        path = self.visualizer.visualize_temperature(
-            output_path, 
-            width=width, 
-            height=height, 
-            projection='mercator' if region else 'equirectangular'
-        )
-    elif data_type == 'precipitation':
-        path = self.visualizer.visualize_precipitation(
-            output_path, 
-            width=width, 
-            height=height, 
-            projection='mercator' if region else 'equirectangular'
-        )
-    else:
-        raise ValueError(f"Unsupported climate data type: {data_type}")
+    def export_climate_map(self, output_path, data_type='temperature', 
+                          width=2048, height=1024, region=None, 
+                          colormap='viridis', bit_depth=8):
+        """
+        Export a climate data map.
+        
+        Parameters:
+        - output_path: Path to save the map
+        - data_type: Type of climate data ('temperature' or 'precipitation')
+        - width, height: Dimensions of the output image
+        - region: Optional tuple (lat_min, lon_min, lat_max, lon_max) for region extract
+        - colormap: Matplotlib colormap to use
+        - bit_depth: Bit depth for the output image
+        
+        Returns:
+        - Path to the exported map
+        """
+        # Check if climate data exists
+        if data_type == 'temperature' and self.planet.temperature is None:
+            raise ValueError("Temperature data not available. Run climate simulation first.")
+        elif data_type == 'precipitation' and self.planet.precipitation is None:
+            raise ValueError("Precipitation data not available. Run climate simulation first.")
+        
+        # Get the appropriate data array
+        if data_type == 'temperature':
+            data = self.planet.temperature
+            title = "Temperature Map (°C)"
+            cmap = plt.cm.coolwarm if colormap == 'viridis' else plt.get_cmap(colormap)
+        else:  # precipitation
+            data = self.planet.precipitation
+            title = "Precipitation Map (mm/year)"
+            cmap = plt.cm.Blues if colormap == 'viridis' else plt.get_cmap(colormap)
+        
+        # Create the data grid
+        grid = self._generate_data_grid(data, width, height, region)
+        
+        # Export the data as an image
+        self._export_data_image(grid, output_path, cmap, title, bit_depth)
+        
+        # Record this export
+        self.export_history.append({
+            "type": f"climate_{data_type}",
+            "path": output_path,
+            "dimensions": [width, height],
+            "region": region
+        })
+        
+        print(f"{data_type.capitalize()} map exported to {output_path}")
+        return output_path
     
-    # Record this export
-    self.export_history.append({
-        "type": f"climate_{data_type}",
-        "path": output_path,
-        "dimensions": [width, height],
-        "region": region
-    })
-    
-    return path
-    
-
     def export_biome_map(self, output_path, width=2048, height=1024, 
-                          region=None, custom_colors=None):
+                         region=None, custom_colors=None):
         """
         Export a biome map.
         
@@ -262,7 +274,7 @@ def export_heightmap(self, output_path, width=2048, height=1024,
         grid = self._generate_data_grid(self.planet.biome_ids, width, height, region)
         
         # Create biome classifier to get colors
-        from planet_sim.core.biome import BiomeClassifier
+        from ..core.biome import BiomeClassifier
         biome_classifier = BiomeClassifier(self.planet)
         
         # Create an RGB image with biome colors
@@ -385,11 +397,43 @@ def export_heightmap(self, output_path, width=2048, height=1024,
                 
                 # Export material setup JSON
                 material_json_path = os.path.join(output_dir, "material_setup.json")
-                material_setup = self._generate_unreal_material_setup()
+                material_setup = {
+                    "layers": [
+                        {
+                            "name": "rock",
+                            "mask": "layer_rock.png",
+                            "albedo": "rock_albedo.png",
+                            "normal": "rock_normal.png",
+                            "roughness": "rock_roughness.png"
+                        },
+                        {
+                            "name": "grass",
+                            "mask": "layer_grass.png",
+                            "albedo": "grass_albedo.png",
+                            "normal": "grass_normal.png",
+                            "roughness": "grass_roughness.png"
+                        },
+                        {
+                            "name": "sand",
+                            "mask": "layer_sand.png",
+                            "albedo": "sand_albedo.png",
+                            "normal": "sand_normal.png",
+                            "roughness": "sand_roughness.png"
+                        },
+                        {
+                            "name": "snow",
+                            "mask": "layer_snow.png",
+                            "albedo": "snow_albedo.png",
+                            "normal": "snow_normal.png",
+                            "roughness": "snow_roughness.png"
+                        }
+                    ],
+                    "blend_method": "height_based"
+                }
                 
                 with open(material_json_path, 'w') as f:
                     json.dump(material_setup, f, indent=2)
-        
+                
         elif engine == 'unity':
             # Unity uses RAW heightmap and splatmaps
             heightmap_path = os.path.join(output_dir, "heightmap.raw")
@@ -437,154 +481,147 @@ def export_heightmap(self, output_path, width=2048, height=1024,
     
     def _export_unreal_layer_maps(self, output_dir, resolution, region=None):
         """Export material layer weight maps for Unreal Engine"""
-        # Define basic layer types
-        layers = [
-            ("rock", lambda biome, elev: (biome in [0, 1, 11]) or elev > 2),
-            ("grass", lambda biome, elev: biome in [2, 3, 4, 5, 6, 8, 9]),
-            ("sand", lambda biome, elev: biome == 7 or (biome == 0 and elev > -0.2 and elev < 0.1)),
-            ("snow", lambda biome, elev: biome == 1 or (elev > 3)),
-            ("mud", lambda biome, elev: biome == 10 or (biome in [5, 9] and elev < 0.5))
-        ]
+        # Define basic layer types based on biomes and elevation
+        # This is a simplified version - a full implementation would be more complex
+        if self.planet.biome_ids is None or self.planet.temperature is None:
+            print("Warning: Biome or climate data not available for material maps")
+            return
         
-        # Generate grid for biomes and elevation
+        # Create necessary data grids
         biome_grid = self._generate_data_grid(self.planet.biome_ids, resolution, resolution, region)
         elev_grid = self._generate_data_grid(self.planet.elevation, resolution, resolution, region)
         
-        # Generate and save each layer
-        for layer_name, condition in layers:
-            layer_grid = np.zeros((resolution, resolution), dtype=np.uint8)
-            
-            for y in range(resolution):
-                for x in range(resolution):
-                    biome = int(biome_grid[y, x])
-                    elev = float(elev_grid[y, x])
-                    
-                    if condition(biome, elev):
-                        # If condition is met, set weight (0-255)
-                        # Additional logic could make this more gradual/blended
-                        weight = 255
-                        
-                        # Feather edges for smooth transitions
-                        if layer_name == "snow" and elev < 3.5:
-                            # Gradual snow line
-                            weight = int(255 * (elev - 3) / 0.5)
-                        elif layer_name == "sand" and elev > 0:
-                            # Beach transition
-                            weight = int(255 * (1 - min(elev*10, 1)))
-                        
-                        layer_grid[y, x] = max(0, min(255, weight))
-            
-            # Save as 8-bit grayscale image
-            layer_path = os.path.join(output_dir, f"layer_{layer_name}.png")
-            img = Image.fromarray(layer_grid, mode='L')
-            img.save(layer_path)
-            
-            print(f"Layer map for {layer_name} exported to {layer_path}")
+        # Define mapping of biomes to materials
+        biome_to_material = {
+            0: "water",     # Ocean
+            1: "snow",      # Ice Sheet
+            2: "grass",     # Tundra
+            3: "grass",     # Taiga
+            4: "grass",     # Temperate Forest
+            5: "grass",     # Temperate Rainforest
+            6: "grass",     # Temperate Grassland
+            7: "sand",      # Desert
+            8: "grass",     # Savanna
+            9: "grass",     # Tropical Seasonal Forest
+            10: "grass",    # Tropical Rainforest
+            11: "rock"      # Alpine/Mountain
+        }
+        
+        # Initialize layer maps
+        rock_layer = np.zeros((resolution, resolution), dtype=np.uint8)
+        grass_layer = np.zeros((resolution, resolution), dtype=np.uint8)
+        sand_layer = np.zeros((resolution, resolution), dtype=np.uint8)
+        snow_layer = np.zeros((resolution, resolution), dtype=np.uint8)
+        
+        # Fill layer maps based on biome and elevation
+        for y in range(resolution):
+            for x in range(resolution):
+                biome = int(biome_grid[y, x])
+                elev = float(elev_grid[y, x])
+                
+                # Default material from biome
+                primary_material = biome_to_material.get(biome, "rock")
+                
+                # Set primary material weight
+                if primary_material == "rock":
+                    rock_layer[y, x] = 255
+                elif primary_material == "grass":
+                    grass_layer[y, x] = 255
+                elif primary_material == "sand":
+                    sand_layer[y, x] = 255
+                elif primary_material == "snow":
+                    snow_layer[y, x] = 255
+                
+                # Additional rules based on elevation
+                if elev > 3.0:  # High mountains get snow regardless of biome
+                    snow_factor = min(1.0, (elev - 3.0) / 2.0)
+                    snow_layer[y, x] = int(255 * snow_factor)
+                
+                if elev < 0.1 and elev >= 0:  # Beaches get sand
+                    sand_factor = 1.0 - min(1.0, elev / 0.1)
+                    sand_layer[y, x] = int(255 * sand_factor)
+                
+                if elev > 1.0 and elev < 3.0:  # Mid-high elevations get more rock
+                    rock_factor = min(1.0, (elev - 1.0) / 2.0)
+                    rock_layer[y, x] = int(255 * rock_factor)
+        
+        # Save layer maps
+        def save_layer(layer, name):
+            path = os.path.join(output_dir, f"layer_{name}.png")
+            img = Image.fromarray(layer, mode='L')
+            img.save(path)
+            return path
+        
+        save_layer(rock_layer, "rock")
+        save_layer(grass_layer, "grass")
+        save_layer(sand_layer, "sand")
+        save_layer(snow_layer, "snow")
+        
+        print(f"Exported material layer maps to {output_dir}")
     
     def _export_unity_splatmap(self, output_dir, resolution, region=None):
         """Export splatmap for Unity terrain system"""
         # Unity splatmap is an RGBA image where each channel represents a texture weight
         # R = first texture, G = second texture, etc.
         
-        # Define which biomes map to which texture:
-        # R = rock, G = grass, B = sand, A = snow
-        texture_mapping = {
-            0: [0, 0, 1, 0],  # Ocean = sand
-            1: [0, 0, 0, 1],  # Ice Sheet = snow
-            2: [0.3, 0.7, 0, 0],  # Tundra = grass + some rock
-            3: [0.2, 0.8, 0, 0],  # Taiga = grass + little rock
-            4: [0, 1, 0, 0],  # Temperate Forest = grass
-            5: [0, 1, 0, 0],  # Temperate Rainforest = grass
-            6: [0, 1, 0, 0],  # Temperate Grassland = grass
-            7: [0, 0, 1, 0],  # Desert = sand
-            8: [0, 0.8, 0.2, 0],  # Savanna = grass + some sand
-            9: [0, 1, 0, 0],  # Tropical Seasonal Forest = grass
-            10: [0, 1, 0, 0],  # Tropical Rainforest = grass
-            11: [1, 0, 0, 0]   # Alpine/Mountain = rock
-        }
-        
-        # Generate biome and elevation grids
+        # Create necessary data grids
         biome_grid = self._generate_data_grid(self.planet.biome_ids, resolution, resolution, region)
         elev_grid = self._generate_data_grid(self.planet.elevation, resolution, resolution, region)
         
         # Create RGBA splatmap
         splatmap = np.zeros((resolution, resolution, 4), dtype=np.uint8)
         
+        # Fill splatmap based on biome and elevation
+        # Channel mapping: R = rock, G = grass, B = sand, A = snow
         for y in range(resolution):
             for x in range(resolution):
                 biome = int(biome_grid[y, x])
                 elev = float(elev_grid[y, x])
                 
-                # Get base texture weights for this biome
-                weights = texture_mapping.get(biome, [0.25, 0.25, 0.25, 0.25])  # Default equal weights
+                # Initialize weights
+                weights = [0, 0, 0, 0]  # rock, grass, sand, snow
+                
+                # Set weights based on biome
+                if biome == 0:  # Ocean
+                    weights = [0, 0, 1, 0]  # Sand
+                elif biome == 1:  # Ice Sheet
+                    weights = [0, 0, 0, 1]  # Snow
+                elif biome in [2, 3, 4, 5, 6, 8, 9, 10]:  # Various forests and grasslands
+                    weights = [0, 1, 0, 0]  # Grass
+                elif biome == 7:  # Desert
+                    weights = [0, 0, 1, 0]  # Sand
+                elif biome == 11:  # Alpine
+                    weights = [1, 0, 0, 0]  # Rock
                 
                 # Adjust weights based on elevation
-                if elev > 3:
-                    # Add snow at high elevations regardless of biome
-                    weights[3] = min(1.0, weights[3] + (elev-3)/2)
+                if elev > 3.0:  # High mountains get snow
+                    snow_factor = min(1.0, (elev - 3.0) / 2.0)
+                    weights[3] = snow_factor
                 
-                if elev < 0 and elev > -0.2:
-                    # Beaches
-                    weights[2] = 1.0  # Sand
+                if elev < 0.1 and elev >= 0:  # Beaches get sand
+                    sand_factor = 1.0 - min(1.0, elev / 0.1)
+                    weights[2] = sand_factor
+                
+                if elev > 1.0 and elev < 3.0:  # Mid-high elevations get more rock
+                    rock_factor = min(1.0, (elev - 1.0) / 2.0)
+                    weights[0] = rock_factor
                 
                 # Normalize weights so they sum to 1
                 weight_sum = sum(weights)
                 if weight_sum > 0:
                     weights = [w / weight_sum for w in weights]
                 
-                # Convert to 0-255 range for image
+                # Set splatmap values (0-255)
                 splatmap[y, x] = [int(w * 255) for w in weights]
         
-        # Save as PNG
+        # Save splatmap
         splatmap_path = os.path.join(output_dir, "splatmap.png")
         img = Image.fromarray(splatmap.astype(np.uint8), mode='RGBA')
         img.save(splatmap_path)
         
-        print(f"Unity splatmap exported to {splatmap_path}")
-    
-    def _generate_unreal_material_setup(self):
-        """Generate material setup JSON for Unreal Engine"""
-        return {
-            "layers": [
-                {
-                    "name": "rock",
-                    "mask": "layer_rock.png",
-                    "albedo": "rock_albedo.png",
-                    "normal": "rock_normal.png",
-                    "roughness": "rock_roughness.png"
-                },
-                {
-                    "name": "grass",
-                    "mask": "layer_grass.png",
-                    "albedo": "grass_albedo.png",
-                    "normal": "grass_normal.png",
-                    "roughness": "grass_roughness.png"
-                },
-                {
-                    "name": "sand",
-                    "mask": "layer_sand.png",
-                    "albedo": "sand_albedo.png",
-                    "normal": "sand_normal.png",
-                    "roughness": "sand_roughness.png"
-                },
-                {
-                    "name": "snow",
-                    "mask": "layer_snow.png",
-                    "albedo": "snow_albedo.png",
-                    "normal": "snow_normal.png",
-                    "roughness": "snow_roughness.png"
-                },
-                {
-                    "name": "mud",
-                    "mask": "layer_mud.png",
-                    "albedo": "mud_albedo.png",
-                    "normal": "mud_normal.png",
-                    "roughness": "mud_roughness.png"
-                }
-            ],
-            "blend_method": "height_based"
-        }
-    
+        print(f"Exported Unity splatmap to {splatmap_path}")
+        return splatmap_path
+
     def export_all(self, output_dir, width=2048, height=1024, 
                   region=None, include_game_exports=False):
         """

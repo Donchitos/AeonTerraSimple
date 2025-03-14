@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced AeonTerra Procedural Planet Generator
-Main test script with improved scientific complexity and visualization capabilities
+AeonTerra Planet Generator - Main Test Script
 """
 
 from planet_sim.core.planet import Planet
@@ -9,13 +8,15 @@ from planet_sim.core.tectonics import TectonicSimulation
 from planet_sim.core.climate import ClimateSimulation
 from planet_sim.core.erosion import ErosionSimulation
 from planet_sim.core.biome import BiomeClassifier
+from planet_sim.utils.visualization import PlanetVisualizer
 from planet_sim.utils.export import ExportManager
+from planet_sim.utils.visualization import WorldMapVisualizer
 import numpy as np
 import os
 import argparse
 import json
 import time
-from datetime import datetime
+import datetime
 
 def parse_arguments():
     """Parse command line arguments for simulation control"""
@@ -47,7 +48,7 @@ def parse_arguments():
     parser.add_argument('--vis-mode', type=str, default='3d', choices=['2d', '3d', 'both'],
                         help='Visualization mode: 2d, 3d, or both')
     parser.add_argument('--projection', type=str, default='equirectangular', 
-                        choices=['equirectangular', 'mollweide', 'orthographic'],
+                        choices=['equirectangular', 'mercator'],
                         help='Map projection for 2D visualization')
     parser.add_argument('--show-features', action='store_true', 
                         help='Show geological features in visualizations')
@@ -81,7 +82,7 @@ def setup_environment(args):
         os.makedirs(args.output_dir)
     
     # Set up session subfolder with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     session_dir = os.path.join(args.output_dir, f"planet_{timestamp}")
     os.makedirs(session_dir)
     
@@ -119,6 +120,43 @@ def create_planet(args):
     
     return planet, tectonics
 
+def save_visualizations(planet, tectonics, vis_mode, session_dir, step, name, projection='equirectangular', show_features=False):
+    """Save visualizations of the current planet state"""
+    visualizer = PlanetVisualizer(planet)
+    
+    # 3D visualizations
+    if vis_mode in ['3d', 'both']:
+        # Save 3D elevation visualization
+        visualizer.visualize_3d(
+            save_path=os.path.join(session_dir, f"planet_{name}_3d.png"),
+            mode='elevation'
+        )
+        
+        # Save 3D plate visualization if it's a tectonic step
+        if step > 0:
+            visualizer.visualize_3d(
+                save_path=os.path.join(session_dir, f"plates_{name}_3d.png"),
+                mode='plates'
+            )
+    
+    # 2D visualizations
+    if vis_mode in ['2d', 'both']:
+        # Save 2D elevation map
+        visualizer.visualize_2d(
+            save_path=os.path.join(session_dir, f"planet_{name}_2d.png"),
+            mode='elevation',
+            projection=projection
+        )
+        
+        # Save 2D plate map if it's a tectonic step
+        if step > 0:
+            visualizer.visualize_plates(
+                save_path=os.path.join(session_dir, f"plates_{name}_2d.png"),
+                show=False,
+                projection=projection,
+                show_boundaries=show_features
+            )
+
 def run_simulation(planet, tectonics, args, session_dir):
     """Run the simulation with the specified parameters"""
     # Create metadata and history tracking
@@ -129,7 +167,7 @@ def run_simulation(planet, tectonics, args, session_dir):
     }
     
     # Save initial state
-    save_state(planet, tectonics, session_dir, 0, "initial")
+    save_visualizations(planet, tectonics, args.vis_mode, session_dir, 0, "initial", args.projection, args.show_features)
     
     print(f"\nRunning tectonic simulation for {args.steps} steps of {args.step_size} million years each...")
     
@@ -144,17 +182,17 @@ def run_simulation(planet, tectonics, args, session_dir):
         
         # Save periodic state
         step_name = f"step_{step+1}"
-        save_state(planet, tectonics, session_dir, step+1, step_name)
+        save_visualizations(planet, tectonics, args.vis_mode, session_dir, step+1, step_name, args.projection, args.show_features)
         
         # Record history for this stage
         stage_data = {
-            "age": planet.age,
+            "age": float(planet.age),
             "step": step+1,
             "elevation_range": [float(planet.elevation.min()), float(planet.elevation.max())],
             "num_plates": len(tectonics.plates),
             "processing_time": tectonic_time,
-            "continental_area": calculate_continental_area(planet),
-            "ocean_area": calculate_ocean_area(planet),
+            "continental_area": calculate_continental_area(tectonics),
+            "ocean_area": 100 - calculate_continental_area(tectonics),
             "plate_statistics": get_plate_statistics(tectonics)
         }
         history["stages"].append(stage_data)
@@ -163,17 +201,31 @@ def run_simulation(planet, tectonics, args, session_dir):
         for event in tectonics.get_recent_events():
             history["events"].append(event)
     
-    # Save final simulation history
+    # Save final visualization and simulation history
     save_history(history, session_dir)
+    visualizer = PlanetVisualizer(planet)
+    visualizer.visualize_history(
+        tectonics, 
+        save_path=os.path.join(session_dir, "tectonic_history.png"),
+        show=False
+    )
+    
+    # Generate detailed world maps
+    save_world_map_visualizations(planet, session_dir, args.projection)
     
     # Additional simulations if requested
     if args.run_climate or args.run_erosion or args.run_biomes:
         run_additional_simulations(planet, args, session_dir)
     
+    # Handle exports if requested
+    handle_exports(planet, args, session_dir)
+    
     return history
 
 def run_additional_simulations(planet, args, session_dir):
     """Run additional simulation components"""
+    visualizer = PlanetVisualizer(planet)
+    
     # Erosion simulation 
     if args.run_erosion:
         print("\nRunning erosion simulation...")
@@ -186,8 +238,10 @@ def run_additional_simulations(planet, args, session_dir):
         planet.rivers = rivers
         
         # Save visualization with erosion and rivers
-        planet.visualize(save_path=os.path.join(session_dir, "planet_with_erosion.png"),
-                        mode='elevation')
+        visualizer.visualize_3d(
+            save_path=os.path.join(session_dir, "planet_with_erosion.png"),
+            mode='elevation'
+        )
         
         # Save river data
         with open(os.path.join(session_dir, "river_data.json"), 'w') as f:
@@ -201,10 +255,26 @@ def run_additional_simulations(planet, args, session_dir):
         climate_sim.simulate(seasons=4)
         
         # Save temperature and precipitation visualizations
-        planet.visualize(save_path=os.path.join(session_dir, "planet_temperature.png"),
-                         mode='temperature')
-        planet.visualize(save_path=os.path.join(session_dir, "planet_precipitation.png"),
-                         mode='precipitation')
+        visualizer.visualize_3d(
+            save_path=os.path.join(session_dir, "planet_temperature.png"),
+            mode='temperature'
+        )
+        visualizer.visualize_3d(
+            save_path=os.path.join(session_dir, "planet_precipitation.png"),
+            mode='precipitation'
+        )
+        
+        if args.vis_mode in ['2d', 'both']:
+            visualizer.visualize_2d(
+                save_path=os.path.join(session_dir, "temperature_2d.png"),
+                mode='temperature', 
+                projection=args.projection
+            )
+            visualizer.visualize_2d(
+                save_path=os.path.join(session_dir, "precipitation_2d.png"),
+                mode='precipitation', 
+                projection=args.projection
+            )
         
         # Save climate data
         save_climate_data(planet, session_dir)
@@ -221,75 +291,95 @@ def run_additional_simulations(planet, args, session_dir):
         biome_classifier.classify()
         
         # Save biome visualization
-        planet.visualize(save_path=os.path.join(session_dir, "planet_biomes.png"),
-                         mode='biome')
+        visualizer.visualize_3d(
+            save_path=os.path.join(session_dir, "planet_biomes.png"),
+            mode='biome'
+        )
+        
+        if args.vis_mode in ['2d', 'both']:
+            visualizer.visualize_2d(
+                save_path=os.path.join(session_dir, "biomes_2d.png"),
+                mode='biome', 
+                projection=args.projection
+            )
         
         # Save biome data
         save_biome_data(planet, biome_classifier, session_dir)
 
-def save_state(planet, tectonics, session_dir, step, name):
-    """Save visualization and data for the current planet state"""
-    # 3D visualizations
-    if args.vis_mode in ['3d', 'both']:
-        # Save 3D elevation visualization
-        planet.visualize(
-            save_path=os.path.join(session_dir, f"planet_{name}_3d.png"),
-            mode='elevation'
-        )
-        
-        # Save 3D plate visualization
-        tectonics.visualize_plates(
-            save_path=os.path.join(session_dir, f"plates_{name}_3d.png"),
-            show_features=args.show_features
-        )
+def handle_exports(planet, args, session_dir):
+    """Handle requested exports"""
+    export_manager = ExportManager(planet)
+    export_dir = os.path.join(session_dir, "exports")
+    os.makedirs(export_dir, exist_ok=True)
     
-# 2D visualizations
-    if args.vis_mode in ['2d', 'both']:
-    # Save 2D elevation map
-        planet.visualize_2d(
-        save_path=os.path.join(session_dir, f"planet_{name}_2d.png"),
-        mode='elevation',
-        projection=args.projection
-    )
-    
-    # Save satellite-style map
-    planet.visualize_2d(
-        save_path=os.path.join(session_dir, f"planet_{name}_satellite.png"),
-        mode='satellite',
-        projection=args.projection
-    )
-    
-    # Save 2D plate map
-    tectonics.visualize_plates_2d(
-        save_path=os.path.join(session_dir, f"plates_{name}_2d.png"),
-        show_features=args.show_features,
-        projection=args.projection
-    )
-    
-# Export heightmap if requested
-    if args.export_heightmap or args.export_all:
-        export_manager = ExportManager(planet)
-    
-    # Full planet heightmap
-    export_manager.export_heightmap(
-        os.path.join(session_dir, f"heightmap_{name}.png"),
-        width=2048,
-        height=1024
-    )
-    
-    # Region heightmap if specified
+    # Parse region if specified
+    region = None
     if args.region:
         try:
-            lat1, lon1, lat2, lon2 = map(float, args.region.split(','))
-            export_manager.export_heightmap(
-                os.path.join(session_dir, f"region_{name}.png"),
-                region=(lat1, lon1, lat2, lon2),
-                width=1024,
-                height=1024
-            )
-        except Exception as e:
-            print(f"Error exporting region: {e}")
+            region = tuple(map(float, args.region.split(',')))
+            if len(region) != 4:
+                print(f"Invalid region format. Expected lat1,lon1,lat2,lon2, got {args.region}")
+                region = None
+        except:
+            print(f"Invalid region format. Expected lat1,lon1,lat2,lon2, got {args.region}")
+    
+    # Handle individual exports
+    if args.export_heightmap:
+        export_manager.export_heightmap(
+            os.path.join(export_dir, "heightmap.png"),
+            region=region
+        )
+    
+    if args.export_climate and planet.temperature is not None:
+        export_manager.export_climate_map(
+            os.path.join(export_dir, "temperature.png"),
+            data_type='temperature',
+            region=region
+        )
         
+        export_manager.export_climate_map(
+            os.path.join(export_dir, "precipitation.png"),
+            data_type='precipitation',
+            region=region
+        )
+    
+    # Export all formats if requested
+    if args.export_all:
+        export_manager.export_all(
+            export_dir,
+            region=region,
+            include_game_exports=True
+        )
+
+def save_world_map_visualizations(planet, session_dir, projection='mercator'):
+    """Generate proper worldbuilding maps like the images you shared"""
+    world_map = WorldMapVisualizer(planet)
+    
+    # Create tectonic plate map (like Image 1)
+    world_map.create_tectonic_plate_map(
+        os.path.join(session_dir, "tectonic_plates_map.png"),
+        width=2048, height=1024,
+        projection=projection,
+        show_boundaries=True,
+        show_labels=True
+    )
+    
+    # Create realistic world map (like Image 2)
+    world_map.create_realistic_world_map(
+        os.path.join(session_dir, "realistic_world_map.png"),
+        width=2048, height=1024,
+        projection=projection,
+        show_rivers=True,
+        show_mountains=True
+    )
+    
+    # Create heightmap (like Image 3)
+    world_map.create_height_map(
+        os.path.join(session_dir, "world_heightmap.png"),
+        width=2048, height=1024,
+        projection=projection,
+        grayscale=True
+    )
 
 def save_history(history, session_dir):
     """Save the simulation history as JSON"""
@@ -334,21 +424,15 @@ def save_biome_data(planet, biome_classifier, session_dir):
     with open(biome_path, 'w') as f:
         json.dump(biome_data, f, indent=2)
 
-def calculate_continental_area(planet):
+def calculate_continental_area(tectonics):
     """Calculate percentage of surface covered by continents"""
-    land_count = np.sum(planet.elevation >= 0)
-    return (land_count / len(planet.elevation)) * 100
-
-def calculate_ocean_area(planet):
-    """Calculate percentage of surface covered by oceans"""
-    ocean_count = np.sum(planet.elevation < 0)
-    return (ocean_count / len(planet.elevation)) * 100
+    return float(np.sum(tectonics.crust_type == 1) / len(tectonics.crust_type) * 100)
 
 def get_plate_statistics(tectonics):
     """Get detailed statistics for all plates"""
     stats = []
     for plate in tectonics.plates:
-        plate_type = "Oceanic" if plate['is_oceanic'] else "Continental"
+        plate_type = "Oceanic" if plate.get('is_oceanic', False) else "Continental"
         vel_mag = np.linalg.norm(plate['velocity']) * 100  # Convert to cm/year
         
         stats.append({
@@ -356,15 +440,8 @@ def get_plate_statistics(tectonics):
             "type": plate_type,
             "area_percentage": float(plate['area'] * 100),
             "velocity_cm_year": float(vel_mag),
-            "continental_percentage": float(plate['continental_percentage']),
-            "age": float(plate['age']),
-            "feature_counts": {
-                "orogenic_belts": len(plate['features']['orogenic_belts']),
-                "rifts": len(plate['features']['rifts']),
-                "volcanic_arcs": len(plate['features']['volcanic_arcs']),
-                "hotspots": len(plate['features']['hotspots']),
-                "transform_zones": len(plate['features']['transform_zones'])
-            }
+            "continental_percentage": float(plate.get('continental_percentage', 0)),
+            "age": float(plate.get('age', 0))
         })
     return stats
 
@@ -387,7 +464,7 @@ def print_final_stats(history, tectonics):
     
     print("\nPlate information:")
     for plate in sorted(tectonics.plates, key=lambda p: p['area'], reverse=True)[:5]:  # Top 5 plates
-        plate_type = "Oceanic" if plate['is_oceanic'] else "Continental"
+        plate_type = "Oceanic" if plate.get('is_oceanic', False) else "Continental"
         vel_mag = np.linalg.norm(plate['velocity']) * 100
         print(f"- Plate {plate['id']}: {plate_type}, Size: {plate['area']*100:.1f}%, Velocity: {vel_mag:.1f} cm/year")
     
@@ -403,14 +480,8 @@ if __name__ == "__main__":
     # Create and initialize the planet
     planet, tectonics = create_planet(args)
     
-    # Save initial state visualization
-    save_state(planet, tectonics, session_dir, 0, "initial")
-    
     # Run the simulation
     history = run_simulation(planet, tectonics, args, session_dir)
-    
-    # Save tectonic history visualization
-    tectonics.visualize_history(save_path=os.path.join(session_dir, "tectonic_history.png"))
     
     # Print final statistics
     print_final_stats(history, tectonics)
