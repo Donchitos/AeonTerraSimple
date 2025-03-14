@@ -1,0 +1,908 @@
+{
+  "parameters": {
+    "resolution": 4,
+    "seed": null,
+    "steps": 8,
+    "step_size": 100.0,
+    "plate_thickness_variation": 1.0,
+    "radius": 6371.0,
+    "num_plates": 12,
+    "initial_age": 4500,
+    "tectonic_activity": 1.2,
+    "continental_fraction": 0.35,
+    "vis_mode": "2d",
+    "projection": "mercator",
+    "show_features": true,
+    "output_dir": "output",
+    "export_heightmap": false,
+    "export_climate": false,
+    "export_all": false,
+    "region": null,
+    "run_climate": true,
+    "run_erosion": true,
+    "run_biomes": true
+  },
+  "stages": [
+    {
+      "age": 4600.0,
+      "step": 1,
+      "elevation_range": [
+        -8.242929385908015,
+        -1.5790428475293377
+      ],
+      "num_plates": 12,
+      "processing_time": 3.7793264389038086,
+      "continental_area": 1.5222482435597189,
+      "ocean_area": 98.47775175644028,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.0304550196301331,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.2762895109763672,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9397471970431217,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.3882909493482062,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.17755173496322219,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.9448784314470854,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.0415891185870495,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.1284623674574091,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0857733855198601,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.42470350738076756,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6699254015696174,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.10976160482421671,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 4700.0,
+      "step": 2,
+      "elevation_range": [
+        -8.898356678411703,
+        -1.5395856931834917
+      ],
+      "num_plates": 12,
+      "processing_time": 3.838102102279663,
+      "continental_area": 2.576112412177986,
+      "ocean_area": 97.42388758782201,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.05219854462099209,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.27816926119165913,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9249684838956311,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.37170531506877835,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.19855191470053427,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.8879213370582555,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.07983403137533025,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.1727346811332913,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0851542853971692,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.4313956644906713,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.680926182483262,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.07317605005986076,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 4800.0,
+      "step": 3,
+      "elevation_range": [
+        -9.39294788899285,
+        -1.5402568419660008
+      ],
+      "num_plates": 12,
+      "processing_time": 3.804304599761963,
+      "continental_area": 2.459016393442623,
+      "ocean_area": 97.54098360655738,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.07354153342707351,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.2784095776402515,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9181062712583496,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.357657510779624,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.2164838044016686,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.8290048424305396,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.11304393279851464,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.2116068128260458,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0857177474936148,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.44074473069879005,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6890782930079273,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.042167408714405115,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 4900.0,
+      "step": 4,
+      "elevation_range": [
+        -9.887653117984112,
+        -1.541650906043342
+      ],
+      "num_plates": 12,
+      "processing_time": 3.790450096130371,
+      "continental_area": 2.419984387197502,
+      "ocean_area": 97.5800156128025,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.09425633978592596,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.2765415060309515,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9181227924754374,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.34553942533957815,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.23157924922802992,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.7702307032870457,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.1437481676880407,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.245469262150084,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0855363139579686,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.4484610213758976,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6942784377532792,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.01955689679380141,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 5000.0,
+      "step": 5,
+      "elevation_range": [
+        -10.351056294957038,
+        -1.5401098122164345
+      ],
+      "num_plates": 12,
+      "processing_time": 3.9100735187530518,
+      "continental_area": 2.6541764246682282,
+      "ocean_area": 97.34582357533178,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.1102906118003497,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.2732767623143186,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9143120627288509,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.33443542665706344,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.24391789402206623,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.7120492818112503,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.16997676394716973,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.2747027077514827,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0830351391929713,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.45212356501046025,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6963935817195883,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.02296335132436487,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 5100.0,
+      "step": 6,
+      "elevation_range": [
+        -10.730270996565016,
+        -1.5408040885690562
+      ],
+      "num_plates": 12,
+      "processing_time": 3.7888875007629395,
+      "continental_area": 2.966432474629196,
+      "ocean_area": 97.0335675253708,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.12599544590694914,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.26841132342284174,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9107920951833234,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.3256735413030677,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.2541501033339767,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.6547044755877814,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.18958197428855758,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.29966202595129804,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0769612065460736,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.4559544804167097,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6955501662945359,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.0426974395544219,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 5200.0,
+      "step": 7,
+      "elevation_range": [
+        -11.091951360230814,
+        -1.5426838610464202
+      ],
+      "num_plates": 12,
+      "processing_time": 3.9086127281188965,
+      "continental_area": 3.0444964871194378,
+      "ocean_area": 96.95550351288057,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.14130675551963545,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.26283688292055624,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9096780498672528,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.31793537680510325,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.26216486055432897,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.5988859200078441,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.20711685558952064,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.3206748485662116,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0663468555580575,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.45715135084289305,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6910729626833598,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.06167382865688849,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    },
+    {
+      "age": 5300.0,
+      "step": 8,
+      "elevation_range": [
+        -11.456264936466734,
+        -1.5410723665190365
+      ],
+      "num_plates": 12,
+      "processing_time": 3.826826572418213,
+      "continental_area": 2.888368462138954,
+      "ocean_area": 97.11163153786104,
+      "plate_statistics": [
+        {
+          "id": 0,
+          "type": "Oceanic",
+          "area_percentage": 11.826697892271664,
+          "velocity_cm_year": 0.15256997715127998,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 1,
+          "type": "Oceanic",
+          "area_percentage": 3.239656518345043,
+          "velocity_cm_year": 0.25819764753936136,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 2,
+          "type": "Oceanic",
+          "area_percentage": 19.242779078844652,
+          "velocity_cm_year": 0.9034934720620552,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 3,
+          "type": "Oceanic",
+          "area_percentage": 7.767369242779079,
+          "velocity_cm_year": 0.3117164318985985,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 4,
+          "type": "Oceanic",
+          "area_percentage": 3.083528493364559,
+          "velocity_cm_year": 0.2677860651580345,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 5,
+          "type": "Oceanic",
+          "area_percentage": 11.631537861046057,
+          "velocity_cm_year": 0.5445665613627009,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 6,
+          "type": "Oceanic",
+          "area_percentage": 5.776736924277908,
+          "velocity_cm_year": 0.2216185184937089,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 7,
+          "type": "Oceanic",
+          "area_percentage": 12.060889929742387,
+          "velocity_cm_year": 0.33804382269435185,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 8,
+          "type": "Oceanic",
+          "area_percentage": 3.669008587041374,
+          "velocity_cm_year": 1.0505398667661818,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 9,
+          "type": "Oceanic",
+          "area_percentage": 9.094457455113194,
+          "velocity_cm_year": 0.4558008906467158,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 10,
+          "type": "Oceanic",
+          "area_percentage": 5.07416081186573,
+          "velocity_cm_year": 0.6826803997985681,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        },
+        {
+          "id": 11,
+          "type": "Oceanic",
+          "area_percentage": 7.533177205308353,
+          "velocity_cm_year": 0.07900851682050043,
+          "continental_percentage": 0.0,
+          "age": 4500.0
+        }
+      ]
+    }
+  ],
+  "events": []
+}

@@ -31,7 +31,8 @@ def parse_arguments():
                         help='Number of tectonic simulation steps')
     parser.add_argument('--step-size', type=float, default=100.0, 
                         help='Size of each step in million years')
-    
+    parser.add_argument('--plate-thickness-variation', type=float, default=1.0,
+                       help='Variation in continental plate thickness (0.5-2.0)')
     # Planet customization
     parser.add_argument('--radius', type=float, default=6371.0, 
                         help='Planet radius in kilometers')
@@ -105,7 +106,9 @@ def create_planet(args):
         num_plates=args.num_plates,
         initial_age=args.initial_age,
         tectonic_activity=args.tectonic_activity,
-        continental_fraction=args.continental_fraction
+        continental_fraction=args.continental_fraction,
+        # Add the new parameter here if you modified the parser
+        plate_thickness_variation=args.plate_thickness_variation if hasattr(args, 'plate_thickness_variation') else 1.0
     )
     
     # Initialize early planetary evolution
@@ -355,7 +358,7 @@ def save_world_map_visualizations(planet, session_dir, projection='mercator'):
     """Generate proper worldbuilding maps like the images you shared"""
     world_map = WorldMapVisualizer(planet)
     
-    # Create tectonic plate map (like Image 1)
+    # Create tectonic plate map (like Image 3)
     world_map.create_tectonic_plate_map(
         os.path.join(session_dir, "tectonic_plates_map.png"),
         width=2048, height=1024,
@@ -364,7 +367,7 @@ def save_world_map_visualizations(planet, session_dir, projection='mercator'):
         show_labels=True
     )
     
-    # Create realistic world map (like Image 2)
+    # Create realistic world map (like Image 1)
     world_map.create_realistic_world_map(
         os.path.join(session_dir, "realistic_world_map.png"),
         width=2048, height=1024,
@@ -373,14 +376,23 @@ def save_world_map_visualizations(planet, session_dir, projection='mercator'):
         show_mountains=True
     )
     
-    # Create heightmap (like Image 3)
+    # Make sure the heightmap is created (like Image 2)
     world_map.create_height_map(
         os.path.join(session_dir, "world_heightmap.png"),
         width=2048, height=1024,
         projection=projection,
         grayscale=True
     )
-
+    
+    # Save an additional heightmap with the file name "heightmap.png" for clarity
+    world_map.create_height_map(
+        os.path.join(session_dir, "heightmap.png"),
+        width=2048, height=1024, 
+        projection=projection,
+        grayscale=True
+    )
+    
+    print("All world maps generated successfully!")
 def save_history(history, session_dir):
     """Save the simulation history as JSON"""
     history_path = os.path.join(session_dir, "simulation_history.json")

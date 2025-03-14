@@ -181,7 +181,7 @@ class PlanetVisualizer:
             
             # Project to 2D based on projection type
             if projection == 'mercator':
-                px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                px, py = self.lat_lon_to_mercator(lat, lon, width, height)
             else:  # Default to equirectangular
                 px = (lon + 180) * width / 360
                 py = (90 - lat) * height / 180
@@ -232,7 +232,7 @@ class PlanetVisualizer:
                         lon = np.arctan2(y, x) * 180 / np.pi
                         
                         if projection == 'mercator':
-                            px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                            px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                         else:
                             px = (lon + 180) * width / 360
                             py = (90 - lat) * height / 180
@@ -339,10 +339,7 @@ class PlanetVisualizer:
             dpi=dpi
         )
         
-        # Draw plate boundaries if requested and available
-        if show_boundaries and hasattr(tectonics, 'plate_boundaries') and tectonics.plate_boundaries is not None:
-            self._draw_plate_boundaries(path, tectonics, projection)
-            
+        # NOTE: Removed call to _draw_plate_boundaries since it's handled in WorldMapVisualizer
         return path
     
     def visualize_history(self, tectonics, save_path=None, show=False, figure_size=(12, 15), dpi=100):
@@ -493,18 +490,29 @@ class PlanetVisualizer:
             t = min(1, (precip - 1000) / 1000)
             return [0.1, 0.8-t*0.4, 0.8+t*0.2]  # Wet - green to blue
     
-    def _lat_lon_to_mercator(self, lat, lon, width, height):
-        """Convert latitude/longitude to Mercator projection x,y coordinates"""
+    def lat_lon_to_mercator(self, lat, lon, width, height):
+        """
+        Convert latitude/longitude to Mercator projection x,y coordinates.
+        
+        Parameters:
+        - lat: Latitude in degrees
+        - lon: Longitude in degrees
+        - width: Width of the output image in pixels
+        - height: Height of the output image in pixels
+        
+        Returns:
+        - (x, y) coordinates in the Mercator projection
+        """
         # Constrain latitude to prevent infinite scaling near poles
         lat = max(min(lat, 85), -85)
         
-        # Mercator projection formulas
-        x = (lon + 180) * (width / 360)
-        
-        # Convert latitude to radians
+        # Convert to radians
         lat_rad = math.radians(lat)
         
-        # Mercator y-coordinate formula
+        # Calculate x-coordinate (same as equirectangular)
+        x = (lon + 180) * (width / 360)
+        
+        # Calculate y-coordinate using Mercator formula
         merc_n = math.log(math.tan((math.pi / 4) + (lat_rad / 2)))
         y = (height / 2) - (width * merc_n / (2 * math.pi))
         
@@ -560,7 +568,7 @@ class WorldMapVisualizer(PlanetVisualizer):
             
             # Project to 2D based on projection type
             if projection == 'mercator':
-                px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                px, py = self.lat_lon_to_mercator(lat, lon, width, height)
             else:  # Default to equirectangular
                 px = (lon + 180) * width / 360
                 py = (90 - lat) * height / 180
@@ -588,18 +596,20 @@ class WorldMapVisualizer(PlanetVisualizer):
         
         # Draw plate boundaries if requested and available
         if show_boundaries and hasattr(self.planet, '_tectonics') and hasattr(self.planet._tectonics, 'plate_boundaries'):
-            for boundary in self.planet._tectonics.plate_boundaries:
-                boundary_x = []
-                boundary_y = []
-                
-                for idx in boundary:
-                    vertex = self.planet.grid.vertices[idx]
+            # Fixed: Handle boolean array properly
+            boundary_x = []
+            boundary_y = []
+            
+            # Iterate through all vertices and check if they are boundaries
+            for i, is_boundary in enumerate(self.planet._tectonics.plate_boundaries):
+                if is_boundary:
+                    vertex = self.planet.grid.vertices[i]
                     x, y, z = vertex
                     lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
                     lon = np.arctan2(y, x) * 180 / np.pi
                     
                     if projection == 'mercator':
-                        px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                        px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                     else:
                         px = (lon + 180) * width / 360
                         py = (90 - lat) * height / 180
@@ -607,9 +617,10 @@ class WorldMapVisualizer(PlanetVisualizer):
                     if 0 <= px < width and 0 <= py < height:
                         boundary_x.append(px)
                         boundary_y.append(py)
-                
-                if boundary_x and boundary_y:
-                    ax.plot(boundary_x, boundary_y, 'k-', linewidth=1.5, alpha=0.7)
+            
+            # Plot the boundary points as black dots
+            if boundary_x and boundary_y:
+                ax.scatter(boundary_x, boundary_y, color='black', s=1.5, alpha=0.8)
         
         # Add labels if requested
         if show_labels and hasattr(self.planet, '_tectonics'):
@@ -617,13 +628,13 @@ class WorldMapVisualizer(PlanetVisualizer):
             for plate in plates:
                 if 'center' in plate:
                     center = plate['center']
-                    center_vertex = self.planet.grid.vertices[center]
-                    x, y, z = center_vertex
-                    lat = np.arcsin(z / np.linalg.norm(center_vertex)) * 180 / np.pi
+                    # Convert center to lat/lon
+                    x, y, z = center
+                    lat = np.arcsin(z / np.linalg.norm(center)) * 180 / np.pi
                     lon = np.arctan2(y, x) * 180 / np.pi
                     
                     if projection == 'mercator':
-                        px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                        px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                     else:
                         px = (lon + 180) * width / 360
                         py = (90 - lat) * height / 180
@@ -750,7 +761,7 @@ class WorldMapVisualizer(PlanetVisualizer):
                         lon = np.arctan2(y, x) * 180 / np.pi
                         
                         if projection == 'mercator':
-                            px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                            px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                         else:
                             px = (lon + 180) * width / 360
                             py = (90 - lat) * height / 180
@@ -770,22 +781,28 @@ class WorldMapVisualizer(PlanetVisualizer):
             mountain_y = []
             mountain_size = []
             
+            # Get neighbors for checking if vertices are local maxima
+            neighbors = self.planet.grid.get_vertex_neighbors()
+            
             # Identify mountain peaks
             for i, elev in enumerate(self.planet.elevation):
-                if elev > 0.05:  # Threshold for mountains
+                if elev > 1.0:  # Threshold for mountains
                     # Check if it's a local maximum
-                    vertex = self.planet.grid.vertices[i]
-                    x, y, z = vertex
-                    lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
-                    lon = np.arctan2(y, x) * 180 / np.pi
-                    
-                    # Get neighbors
-                    neighbors = self.planet.grid.get_neighbors(i)
-                    is_peak = all(self.planet.elevation[i] >= self.planet.elevation[n] for n in neighbors)
+                    is_peak = True
+                    for n in neighbors[i]:
+                        if self.planet.elevation[n] > elev:
+                            is_peak = False
+                            break
                     
                     if is_peak:
+                        # Convert to lat/lon
+                        vertex = self.planet.grid.vertices[i]
+                        x, y, z = vertex
+                        lat = np.arcsin(z / np.linalg.norm(vertex)) * 180 / np.pi
+                        lon = np.arctan2(y, x) * 180 / np.pi
+                        
                         if projection == 'mercator':
-                            px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                            px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                         else:
                             px = (lon + 180) * width / 360
                             py = (90 - lat) * height / 180
@@ -941,7 +958,7 @@ class WorldMapVisualizer(PlanetVisualizer):
             y_points = []
             for lon in range(-180, 181, 2):
                 if projection == 'mercator':
-                    px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                    px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                 else:
                     px = (lon + 180) * width / 360
                     py = (90 - lat) * height / 180
@@ -963,7 +980,7 @@ class WorldMapVisualizer(PlanetVisualizer):
             y_points = []
             for lat in range(-80, 81, 1):
                 if projection == 'mercator':
-                    px, py = self._lat_lon_to_mercator(lat, lon, width, height)
+                    px, py = self.lat_lon_to_mercator(lat, lon, width, height)
                 else:
                     px = (lon + 180) * width / 360
                     py = (90 - lat) * height / 180
