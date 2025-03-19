@@ -164,31 +164,103 @@ class TectonicSimulation:
         age_variation = 100 * np.random.random(len(self.crust_age))
         self.crust_age = self.initial_age - age_variation
     
-    def _simulate_mantle_differentiation(self):
-        """Simulate mantle differentiation and initial crustal dichotomy"""
-        print("  Stage 2: Mantle differentiation and crustal evolution")
+def _simulate_mantle_differentiation(self):
+    """Simulate mantle differentiation and initial crustal dichotomy"""
+    print("  Stage 2: Mantle differentiation and crustal evolution")
+    
+    # Generate regions where early continental crust forms using coherent noise
+    # Continental crust forms through partial melting and reprocessing
+    proto_continents = self._generate_coherent_noise(octaves=3, scale=3.0)
+    
+    # Add bias to create more coherent continents (rather than scattered fragments)
+    # Apply a smoothing filter to the noise
+    from scipy.ndimage import gaussian_filter
+    
+    # Convert to grid for smoothing
+    grid_size = int(np.sqrt(len(proto_continents))) * 2
+    grid = np.zeros((grid_size, grid_size))
+    
+    # Map values to grid
+    for i, val in enumerate(proto_continents):
+        # Convert vertex to lat-lon coordinates
+        x, y, z = self.planet.grid.vertices[i]
+        lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[i]))
+        lon = np.arctan2(y, x)
         
-        # Generate regions where early continental crust forms
-        # Continental crust forms through partial melting and reprocessing
-        proto_continents = self._generate_coherent_noise(octaves=3, scale=3.0)
+        # Map to grid coordinates
+        grid_x = int((lon + np.pi) / (2 * np.pi) * grid_size) % grid_size
+        grid_y = int((lat + np.pi/2) / np.pi * grid_size/2) % grid_size
         
-        # Higher values = more likely to form continental crust
-        # Target the desired continental percentage
-        continental_threshold = np.percentile(proto_continents, 
-                                             (1 - self.target_continental_fraction) * 100)
+        # Set value
+        grid[grid_y, grid_x] = val
+    
+    # Apply smoothing to create more coherent continents
+    smoothed_grid = gaussian_filter(grid, sigma=3.0)
+    
+    # Map back to vertices
+    for i in range(len(proto_continents)):
+        x, y, z = self.planet.grid.vertices[i]
+        lat = np.arcsin(z / np.linalg.norm(self.planet.grid.vertices[i]))
+        lon = np.arctan2(y, x)
         
-        continental_mask = proto_continents > continental_threshold
+        grid_x = int((lon + np.pi) / (2 * np.pi) * grid_size) % grid_size
+        grid_y = int((lat + np.pi/2) / np.pi * grid_size/2) % grid_size
         
-        # Convert these regions to early continental crust (cratons)
-        self.crust_type[continental_mask] = 1  # Continental
+        proto_continents[i] = smoothed_grid[grid_y, grid_x]
+    
+    # Create 2-4 major continental blocks
+    num_blocks = np.random.randint(2, 5)
+    continental_seeds = []
+    
+    for _ in range(num_blocks):
+        # Random point on sphere
+        theta = np.random.random() * 2 * np.pi
+        phi = np.arccos(2 * np.random.random() - 1)
         
-        # Early continental crust was thick but density similar to modern
-        self.crust_thickness[continental_mask] = (self.AVG_CONTINENTAL_THICKNESS * 1.1 + 
-                                                 5 * np.random.random(np.sum(continental_mask)))
-        self.crust_density[continental_mask] = self.CONTINENTAL_DENSITY
+        x = np.sin(phi) * np.cos(theta)
+        y = np.sin(phi) * np.sin(theta)
+        z = np.cos(phi)
         
-        # Continental crust is older than surrounding oceanic crust
-        self.crust_age[continental_mask] = self.initial_age * 0.9 + self.initial_age * 0.1 * np.random.random(np.sum(continental_mask))
+        continental_seeds.append(np.array([x, y, z]))
+    
+    # Boost continental crust formation near seeds
+    for i, vertex in enumerate(self.planet.grid.vertices):
+        # Find distance to closest continental seed
+        min_dist = float('inf')
+        
+        for seed in continental_seeds:
+            # Calculate angular distance
+            dot = np.clip(np.dot(vertex, seed) / 
+                        (np.linalg.norm(vertex) * np.linalg.norm(seed)), -1.0, 1.0)
+            dist = np.arccos(dot)
+            min_dist = min(min_dist, dist)
+        
+        # Boost proto_continents value based on proximity to continental seed
+        # This makes continents more likely to form near the seeds
+        proximity_factor = max(0, 1.0 - min_dist / np.pi * 2)
+        proto_continents[i] += proximity_factor * 0.5
+    
+    # Higher values = more likely to form continental crust
+    # Target the desired continental percentage
+    continental_threshold = np.percentile(proto_continents, 
+                                         (1 - self.target_continental_fraction) * 100)
+    
+    continental_mask = proto_continents > continental_threshold
+    
+    # Convert these regions to early continental crust (cratons)
+    self.crust_type[continental_mask] = 1  # Continental
+    
+    # Early continental crust was thick but density similar to modern
+    self.crust_thickness[continental_mask] = (self.AVG_CONTINENTAL_THICKNESS * 1.1 + 
+                                             5 * np.random.random(np.sum(continental_mask)))
+    self.crust_density[continental_mask] = self.CONTINENTAL_DENSITY
+    
+    # Continental crust is older than surrounding oceanic crust
+    self.crust_age[continental_mask] = self.initial_age * 0.9 + self.initial_age * 0.1 * np.random.random(np.sum(continental_mask))
+    
+    # Print continental coverage
+    continental_percentage = np.sum(continental_mask) / len(continental_mask) * 100
+    print(f"  Generated {continental_percentage:.1f}% continental crust")
     
     def _simulate_early_tectonics(self):
         """Simulate early tectonic processes before stable plate tectonics"""
@@ -451,193 +523,279 @@ class TectonicSimulation:
         
         return coherent_noise
     
-    def initialize_plates(self):
-        """Create initial plates using a more realistic model of early crust formation"""
-        print("Initializing tectonic plates...")
+def initialize_plates(self):
+    """Create initial plates using a more realistic model of early crust formation"""
+    print("Initializing tectonic plates...")
+    
+    # Step 1: Create initial crustal thickness variations
+    # This simulates the early formation of the crust with thickness variations
+    thickness_noise = self._generate_coherent_noise(octaves=4)
+    
+    # Apply scientific constraints to thickness
+    # Continental crust: 25-70 km thick
+    # Oceanic crust: 5-10 km thick
+    
+    # Use a bimodal distribution to create distinct continental and oceanic crust
+    continental_threshold = 1.0 - self.target_continental_fraction
+    continental_mask = thickness_noise > continental_threshold
+    
+    # Set thickness based on crust type
+    self.crust_thickness = np.zeros(len(self.planet.grid.vertices))
+    
+    # Continental crust (25-70 km, averaging around 35 km)
+    # Apply variation based on the customization parameter
+    thickness_var = 15 * self.plate_thickness_variation
+    continental_thickness = self.AVG_CONTINENTAL_THICKNESS + thickness_var * (thickness_noise[continental_mask] - continental_threshold) / (1.0 - continental_threshold)
+    self.crust_thickness[continental_mask] = continental_thickness
+    
+    # Oceanic crust (5-10 km, averaging around 7 km)
+    # Apply variation based on the customization parameter
+    oceanic_thickness = self.AVG_OCEANIC_THICKNESS + 2 * self.plate_thickness_variation * thickness_noise[~continental_mask]
+    self.crust_thickness[~continental_mask] = oceanic_thickness
+    
+    # Set crust type and density
+    self.crust_type[continental_mask] = 1  # Continental
+    self.crust_type[~continental_mask] = 0  # Oceanic
+    
+    # Density based on type (continental: ~2.7 g/cm³, oceanic: ~3.0 g/cm³)
+    self.crust_density[continental_mask] = self.CONTINENTAL_DENSITY
+    self.crust_density[~continental_mask] = self.OCEANIC_DENSITY
+    
+    # Initial crust age - continental crust is much older than oceanic
+    self.crust_age[continental_mask] = self.initial_age * 0.8 + self.initial_age * 0.2 * np.random.random(np.sum(continental_mask))
+    self.crust_age[~continental_mask] = 200 * np.random.random(np.sum(~continental_mask))  # Ocean crust younger than 200 Ma
+    
+    # Step 2: Define initial plate boundaries using Voronoi cells on the sphere
+    self._generate_plate_boundaries()
+    
+    # Step 3: Initialize plate properties
+    self._initialize_plate_properties()
+    
+    # Step 4: Set initial elevation based on isostatic equilibrium
+    self._calculate_isostatic_elevation()
+    
+    # Step 5: Ensure continental crust emerges properly
+    self.ensure_continental_emergence()
+    
+    # Record initial state in history
+    self._record_state()
+    
+    # Add initial event
+    self._add_event("Initial planetary configuration established")
+    
+    print(f"Initialized {len(self.plates)} tectonic plates")
+    return self
         
-        # Step 1: Create initial crustal thickness variations
-        # This simulates the early formation of the crust with thickness variations
-        thickness_noise = self._generate_coherent_noise(octaves=4)
-        
-        # Apply scientific constraints to thickness
-        # Continental crust: 25-70 km thick
-        # Oceanic crust: 5-10 km thick
-        
-        # Use a bimodal distribution to create distinct continental and oceanic crust
-        continental_threshold = 1.0 - self.target_continental_fraction
-        continental_mask = thickness_noise > continental_threshold
-        
-        # Set thickness based on crust type
-        self.crust_thickness = np.zeros(len(self.planet.grid.vertices))
-        
-        # Continental crust (25-70 km, averaging around 35 km)
-        # Apply variation based on the customization parameter
-        thickness_var = 15 * self.plate_thickness_variation
-        continental_thickness = self.AVG_CONTINENTAL_THICKNESS + thickness_var * (thickness_noise[continental_mask] - continental_threshold) / (1.0 - continental_threshold)
-        self.crust_thickness[continental_mask] = continental_thickness
-        
-        # Oceanic crust (5-10 km, averaging around 7 km)
-        # Apply variation based on the customization parameter
-        oceanic_thickness = self.AVG_OCEANIC_THICKNESS + 2 * self.plate_thickness_variation * thickness_noise[~continental_mask]
-        self.crust_thickness[~continental_mask] = oceanic_thickness
-        
-        # Set crust type and density
-        self.crust_type[continental_mask] = 1  # Continental
-        self.crust_type[~continental_mask] = 0  # Oceanic
-        
-        # Density based on type (continental: ~2.7 g/cm³, oceanic: ~3.0 g/cm³)
-        self.crust_density[continental_mask] = self.CONTINENTAL_DENSITY
-        self.crust_density[~continental_mask] = self.OCEANIC_DENSITY
-        
-        # Initial crust age - continental crust is much older than oceanic
-        self.crust_age[continental_mask] = self.initial_age * 0.8 + self.initial_age * 0.2 * np.random.random(np.sum(continental_mask))
-        self.crust_age[~continental_mask] = 200 * np.random.random(np.sum(~continental_mask))  # Ocean crust younger than 200 Ma
-        
-        # Step 2: Define initial plate boundaries using Voronoi cells on the sphere
-        self._generate_plate_boundaries()
-        
-        # Step 3: Initialize plate properties
-        self._initialize_plate_properties()
-        
-        # Step 4: Set initial elevation based on isostatic equilibrium
-        self._calculate_isostatic_elevation()
-        
-        # Record initial state in history
-        self._record_state()
-        
-        # Add initial event
-        self._add_event("Initial planetary configuration established")
-        
-        print(f"Initialized {len(self.plates)} tectonic plates")
-        return self
-        
-    def _generate_plate_boundaries(self, custom_num_plates=None):
-        """Generate plate boundaries using Voronoi cells on the sphere"""
-        num_plates = custom_num_plates if custom_num_plates is not None else self.num_plates
-        
-        # Step 1: Choose random seed points on the sphere
-        seed_points = []
-        for _ in range(num_plates):
-            # Random point on unit sphere
+def _generate_plate_boundaries(self, custom_num_plates=None):
+    """Generate plate boundaries using Voronoi cells on the sphere with continental bias"""
+    num_plates = custom_num_plates if custom_num_plates is not None else self.num_plates
+    
+    # Calculate desired number of continental and oceanic plates
+    target_continental_plates = max(1, int(num_plates * self.target_continental_fraction * 1.5))
+    oceanic_plates = num_plates - target_continental_plates
+    
+    print(f"  Targeting {target_continental_plates} continental plates and {oceanic_plates} oceanic plates")
+    
+    # Get indices of continental and oceanic crust
+    continental_indices = np.where(self.crust_type == 1)[0]
+    oceanic_indices = np.where(self.crust_type == 0)[0]
+    
+    # Ensure we have continental crust
+    if len(continental_indices) == 0:
+        print("  Warning: No continental crust found. Generating continental crust...")
+        # Force creation of some continental crust
+        random_vertices = np.random.choice(
+            range(len(self.planet.grid.vertices)), 
+            size=int(len(self.planet.grid.vertices) * self.target_continental_fraction),
+            replace=False
+        )
+        self.crust_type[random_vertices] = 1
+        self.crust_thickness[random_vertices] = self.AVG_CONTINENTAL_THICKNESS
+        self.crust_density[random_vertices] = self.CONTINENTAL_DENSITY
+        continental_indices = random_vertices
+    
+    # Choose seed points for continental plates from continental crust regions
+    seed_points = []
+    
+    # Continental plate seeds first
+    for _ in range(target_continental_plates):
+        if len(continental_indices) > 0:
+            # Select a random continental vertex
+            idx = np.random.choice(continental_indices)
+            seed_points.append(self.planet.grid.vertices[idx])
+            
+            # Remove nearby continental vertices to avoid clustering
+            pos = self.planet.grid.vertices[idx]
+            distances = np.array([
+                np.arccos(np.clip(np.dot(pos, self.planet.grid.vertices[i]) / 
+                               (np.linalg.norm(pos) * np.linalg.norm(self.planet.grid.vertices[i])), 
+                               -1.0, 1.0))
+                for i in continental_indices
+            ])
+            mask = distances > 0.5  # Remove continental vertices within ~30° arc distance
+            if np.any(mask):  # Check if mask has any True values
+                continental_indices = continental_indices[mask]
+        else:
+            # If we run out of continental vertices, just choose randomly
             theta = np.random.random() * 2 * np.pi
             phi = np.arccos(2 * np.random.random() - 1)
-            
-            x = np.sin(phi) * np.cos(theta)
-            y = np.sin(phi) * np.sin(theta)
-            z = np.cos(phi)
-            
-            seed_points.append([x, y, z])
-        
-        # Step 2: For each vertex, find closest seed point
-        for i, vertex in enumerate(self.planet.grid.vertices):
-            min_dist = float('inf')
-            closest_plate = -1
-            
-            for j, seed in enumerate(seed_points):
-                # Distance on the sphere (use arc length, not Euclidean)
-                dot_product = np.clip(np.dot(vertex, seed) / 
-                                      (np.linalg.norm(vertex) * np.linalg.norm(seed)), -1.0, 1.0)
-                arc_dist = np.arccos(dot_product)
-                
-                if arc_dist < min_dist:
-                    min_dist = arc_dist
-                    closest_plate = j
-            
-            # Assign vertex to plate
-            self.planet.plate_ids[i] = closest_plate
-            
-        # Step 3: Calculate plate boundaries
-        # We'll identify vertices at plate boundaries for later use
-        is_boundary = np.zeros(len(self.planet.grid.vertices), dtype=bool)
-        neighbors = self.planet.grid.get_vertex_neighbors()
-        
-        for i, neighbor_list in enumerate(neighbors):
-            plate_id = self.planet.plate_ids[i]
-            for neighbor in neighbor_list:
-                if self.planet.plate_ids[neighbor] != plate_id:
-                    is_boundary[i] = True
-                    break
-        
-        self.plate_boundaries = is_boundary
-        
-        # Initialize boundary stress and age to zero
-        self.boundary_stress = np.zeros(len(self.planet.grid.vertices))
-        self.boundary_age = np.zeros(len(self.planet.grid.vertices))
+            seed_points.append([
+                np.sin(phi) * np.cos(theta),
+                np.sin(phi) * np.sin(theta),
+                np.cos(phi)
+            ])
     
-    def _initialize_plate_properties(self, velocity_scale=1.0):
-        """Initialize properties for each plate with scientific parameters"""
-        self.plates = []
+    # Oceanic plate seeds
+    for _ in range(oceanic_plates):
+        if len(oceanic_indices) > 0:
+            # Select a random oceanic vertex
+            idx = np.random.choice(oceanic_indices)
+            seed_points.append(self.planet.grid.vertices[idx])
+            
+            # Remove nearby oceanic vertices to avoid clustering
+            pos = self.planet.grid.vertices[idx]
+            distances = np.array([
+                np.arccos(np.clip(np.dot(pos, self.planet.grid.vertices[i]) / 
+                               (np.linalg.norm(pos) * np.linalg.norm(self.planet.grid.vertices[i])), 
+                               -1.0, 1.0))
+                for i in oceanic_indices
+            ])
+            mask = distances > 0.5  # Remove oceanic vertices within ~30° arc distance
+            if np.any(mask):  # Check if mask has any True values
+                oceanic_indices = oceanic_indices[mask]
+        else:
+            # If we run out of oceanic vertices, just choose randomly
+            theta = np.random.random() * 2 * np.pi
+            phi = np.arccos(2 * np.random.random() - 1)
+            seed_points.append([
+                np.sin(phi) * np.cos(theta),
+                np.sin(phi) * np.sin(theta),
+                np.cos(phi)
+            ])
+    
+    # Step 2: For each vertex, find closest seed point
+    for i, vertex in enumerate(self.planet.grid.vertices):
+        min_dist = float('inf')
+        closest_plate = -1
         
-        # Iterate through possible plate IDs and create plates for ones with vertices
-        for i in range(self.num_plates):
-            # Get all vertices in this plate
-            plate_vertices = np.where(self.planet.plate_ids == i)[0]
+        for j, seed in enumerate(seed_points):
+            # Distance on the sphere (use arc length, not Euclidean)
+            dot_product = np.clip(np.dot(vertex, seed) / 
+                                 (np.linalg.norm(vertex) * np.linalg.norm(seed)), -1.0, 1.0)
+            arc_dist = np.arccos(dot_product)
             
-            # Skip if plate is empty
-            if len(plate_vertices) == 0:
-                continue
-            
-            # Calculate center of mass
-            center_pos = np.zeros(3)
-            for vertex_idx in plate_vertices:
-                center_pos += self.planet.grid.vertices[vertex_idx]
-            center_pos /= len(plate_vertices)
-            center_pos = center_pos / np.linalg.norm(center_pos)  # Normalize to sphere
-            
-            # Determine if plate is primarily oceanic or continental
-            # This is based on the dominant crust type within the plate
-            continental_crust_count = np.sum(self.crust_type[plate_vertices] == 1)
-            is_oceanic = continental_crust_count < len(plate_vertices) / 2
-            
-            # Calculate plate velocity based on mantle forces
-            plate_force = np.zeros(3)
-            for vertex_idx in plate_vertices:
-                plate_force += self.mantle_forces[vertex_idx]
-            plate_force /= len(plate_vertices)
-            
-            # Add a small random component
-            rand_component = np.random.normal(0, 0.002, 3)
-            plate_force += rand_component
-            
-            # Scale velocity based on plate type (oceanic moves faster)
-            # And apply the velocity scale parameter
-            if is_oceanic:
-                vel_factor = 1.5 * velocity_scale
-                max_vel = self.PLATE_VELOCITY_OCEANIC_MAX / 100.0  # Convert cm/year to simulation units
-            else:
-                vel_factor = 0.8 * velocity_scale
-                max_vel = self.PLATE_VELOCITY_CONTINENTAL_MAX / 100.0  # Convert cm/year to simulation units
-            
-            # Apply velocity but cap at maximum based on plate type
-            velocity = plate_force * vel_factor
-            vel_mag = np.linalg.norm(velocity)
-            if vel_mag > max_vel:
-                velocity = velocity * (max_vel / vel_mag)
-            
-            # Create plate object with enhanced properties
-            plate = {
-                'id': i,
-                'center': center_pos,
-                'vertices': plate_vertices,
-                'is_oceanic': is_oceanic,
-                'velocity': velocity,
-                'area': len(plate_vertices) / len(self.planet.grid.vertices),
-                'age': self.initial_age,
-                'continental_percentage': continental_crust_count / len(plate_vertices) * 100,
-                'boundaries': [],
-                'features': {
-                    'orogenic_belts': [],  # Mountain ranges
-                    'rifts': [],           # Spreading centers
-                    'volcanic_arcs': [],   # Subduction volcanoes
-                    'hotspots': [],        # Intraplate volcanic centers
-                    'transform_zones': []  # Transform fault zones
-                }
+            if arc_dist < min_dist:
+                min_dist = arc_dist
+                closest_plate = j
+        
+        # Assign vertex to plate
+        self.planet.plate_ids[i] = closest_plate
+        
+    # Step 3: Calculate plate boundaries
+    # We'll identify vertices at plate boundaries for later use
+    is_boundary = np.zeros(len(self.planet.grid.vertices), dtype=bool)
+    neighbors = self.planet.grid.get_vertex_neighbors()
+    
+    for i, neighbor_list in enumerate(neighbors):
+        plate_id = self.planet.plate_ids[i]
+        for neighbor in neighbor_list:
+            if self.planet.plate_ids[neighbor] != plate_id:
+                is_boundary[i] = True
+                break
+    
+    self.plate_boundaries = is_boundary
+    
+    # Initialize boundary stress and age to zero
+    self.boundary_stress = np.zeros(len(self.planet.grid.vertices))
+    self.boundary_age = np.zeros(len(self.planet.grid.vertices))
+    
+def _initialize_plate_properties(self, velocity_scale=1.0):
+    """Initialize properties for each plate with scientific parameters"""
+    self.plates = []
+    
+    # Metrics for monitoring
+    continental_plates_count = 0
+    oceanic_plates_count = 0
+    
+    # Iterate through possible plate IDs and create plates for ones with vertices
+    for i in range(self.num_plates):
+        # Get all vertices in this plate
+        plate_vertices = np.where(self.planet.plate_ids == i)[0]
+        
+        # Skip if plate is empty
+        if len(plate_vertices) == 0:
+            continue
+        
+        # Calculate center of mass
+        center_pos = np.zeros(3)
+        for vertex_idx in plate_vertices:
+            center_pos += self.planet.grid.vertices[vertex_idx]
+        center_pos /= len(plate_vertices)
+        center_pos = center_pos / np.linalg.norm(center_pos)  # Normalize to sphere
+        
+        # Determine if plate is primarily oceanic or continental
+        # This is based on the dominant crust type within the plate
+        continental_crust_count = np.sum(self.crust_type[plate_vertices] == 1)
+        continental_percentage = continental_crust_count / len(plate_vertices) * 100
+        
+        # More balanced classification - use a lower threshold for continents
+        # A plate with 30% or more continental crust is considered continental
+        # This represents mixed plates like Eurasia which have significant oceanic components
+        is_oceanic = continental_percentage < 30.0
+        
+        # Calculate plate velocity based on mantle forces
+        plate_force = np.zeros(3)
+        for vertex_idx in plate_vertices:
+            plate_force += self.mantle_forces[vertex_idx]
+        plate_force /= len(plate_vertices)
+        
+        # Add a small random component
+        rand_component = np.random.normal(0, 0.002, 3)
+        plate_force += rand_component
+        
+        # Scale velocity based on plate type (oceanic moves faster)
+        # And apply the velocity scale parameter
+        if is_oceanic:
+            vel_factor = 1.5 * velocity_scale
+            max_vel = self.PLATE_VELOCITY_OCEANIC_MAX / 100.0  # Convert cm/year to simulation units
+            oceanic_plates_count += 1
+        else:
+            vel_factor = 0.8 * velocity_scale
+            max_vel = self.PLATE_VELOCITY_CONTINENTAL_MAX / 100.0  # Convert cm/year to simulation units
+            continental_plates_count += 1
+        
+        # Apply velocity but cap at maximum based on plate type
+        velocity = plate_force * vel_factor
+        vel_mag = np.linalg.norm(velocity)
+        if vel_mag > max_vel:
+            velocity = velocity * (max_vel / vel_mag)
+        
+        # Create plate object with enhanced properties
+        plate = {
+            'id': i,
+            'center': center_pos,
+            'vertices': plate_vertices,
+            'is_oceanic': is_oceanic,
+            'velocity': velocity,
+            'area': len(plate_vertices) / len(self.planet.grid.vertices),
+            'age': self.initial_age,
+            'continental_percentage': continental_percentage,
+            'boundaries': [],
+            'features': {
+                'orogenic_belts': [],  # Mountain ranges
+                'rifts': [],           # Spreading centers
+                'volcanic_arcs': [],   # Subduction volcanoes
+                'hotspots': [],        # Intraplate volcanic centers
+                'transform_zones': []  # Transform fault zones
             }
-            
-            self.plates.append(plate)
+        }
         
-        # Update plate boundaries
-        self._update_plate_boundaries()
+        self.plates.append(plate)
+    
+    print(f"  Created {continental_plates_count} continental plates and {oceanic_plates_count} oceanic plates")
+    
+    # Update plate boundaries
+    self._update_plate_boundaries()
     
     def _update_plate_boundaries(self):
         """Update the list of plate boundaries and classify boundary types"""
@@ -1296,3 +1454,164 @@ class TectonicSimulation:
         y = (height / 2) - (width * merc_n / (2 * math.pi))
         
         return x, y
+    
+def ensure_continental_emergence(self):
+    """
+    Ensure that continental crust emerges above sea level
+    by adjusting isostatic equilibrium calculations
+    """
+    print("Ensuring continental crust emerges above sea level...")
+    
+    # Get continental vertices
+    continental_vertices = np.where(self.crust_type == 1)[0]
+    
+    if len(continental_vertices) == 0:
+        print("  No continental crust found, cannot adjust elevations")
+        return
+    
+    # Get current elevation stats
+    cont_elevations = self.planet.elevation[continental_vertices]
+    min_cont_elev = np.min(cont_elevations)
+    max_cont_elev = np.max(cont_elevations)
+    mean_cont_elev = np.mean(cont_elevations)
+    
+    print(f"  Continental elevation before adjustment: {min_cont_elev:.2f} to {max_cont_elev:.2f}, mean: {mean_cont_elev:.2f}")
+    
+    # If average continental elevation is below sea level, adjust
+    if mean_cont_elev < 0.2:  # We want continents to be significantly above sea level
+        # Calculate adjustment needed - we want mean elevation around 0.8 km
+        adjustment = 0.8 - mean_cont_elev
+        
+        # Apply adjustment to all continental crust
+        self.planet.elevation[continental_vertices] += adjustment
+        
+        # Recalculate stats
+        cont_elevations = self.planet.elevation[continental_vertices]
+        min_cont_elev = np.min(cont_elevations)
+        max_cont_elev = np.max(cont_elevations)
+        mean_cont_elev = np.mean(cont_elevations)
+        
+        print(f"  Continental elevation after adjustment: {min_cont_elev:.2f} to {max_cont_elev:.2f}, mean: {mean_cont_elev:.2f}")
+        
+    # Ensure some parts of each continental plate are above water
+    for plate in self.plates:
+        if not plate['is_oceanic']:
+            # Get continental vertices in this plate
+            plate_cont_vertices = np.intersect1d(plate['vertices'], continental_vertices)
+            
+            if len(plate_cont_vertices) > 0:
+                plate_elevations = self.planet.elevation[plate_cont_vertices]
+                max_plate_elev = np.max(plate_elevations)
+                
+                # If the highest point is underwater, bring it above
+                if max_plate_elev < 0:
+                    # Find highest points (top 10%)
+                    high_threshold = np.percentile(plate_elevations, 90)
+                    high_points = plate_cont_vertices[plate_elevations >= high_threshold]
+                    
+                    # Lift these points above sea level
+                    adjustment = 0.5 - max_plate_elev  # Raise to at least 0.5 km
+                    self.planet.elevation[high_points] += adjustment
+                    
+                    print(f"  Raised continental plate {plate['id']} above sea level")
+    
+    # Apply terrain variations for realism
+    self._apply_terrain_variations()
+
+def _apply_terrain_variations(self):
+    """Apply realistic terrain variations to the elevation model"""
+    # Create high-frequency noise
+    terrain_noise = self._generate_coherent_noise(octaves=6, persistence=0.5, scale=0.5)
+    
+    # Apply noise differently to different regions
+    for i in range(len(self.planet.elevation)):
+        if self.planet.elevation[i] > 0:  # Land
+            # More varied terrain on land
+            # Variation increases with elevation (mountains more rugged)
+            base_variation = 0.3 * terrain_noise[i]
+            elevation_factor = min(1.0, self.planet.elevation[i] / 3.0)
+            variation = base_variation * (1.0 + elevation_factor)
+            
+            self.planet.elevation[i] += variation
+        else:  # Ocean
+            # Smoother but still varied ocean floor
+            variation = 0.1 * terrain_noise[i]
+            self.planet.elevation[i] += variation
+    
+    # Add mountain ranges along convergent boundaries
+    if self.plate_boundaries is not None:
+        boundary_vertices = np.where(self.plate_boundaries)[0]
+        neighbors = self.planet.grid.get_vertex_neighbors()
+        
+        for i in boundary_vertices:
+            # Skip underwater boundaries
+            if self.planet.elevation[i] < 0:
+                continue
+                
+            # Check if this is a convergent boundary
+            plate_id = self.planet.plate_ids[i]
+            if plate_id == -1 or plate_id >= len(self.plates):
+                continue
+                
+            # Find neighbor from different plate
+            neighbor_plate = None
+            for n in neighbors[i]:
+                if self.planet.plate_ids[n] != plate_id and self.planet.plate_ids[n] != -1:
+                    neighbor_plate = self.planet.plate_ids[n]
+                    break
+            
+            if neighbor_plate is not None and neighbor_plate < len(self.plates):
+                # Check if both are continental
+                if (not self.plates[plate_id]['is_oceanic'] and 
+                    not self.plates[neighbor_plate]['is_oceanic']):
+                    # Continental collision = higher mountains
+                    self.planet.elevation[i] += np.random.random() * 2.0
+
+def _apply_terrain_variations(self):
+    """Apply realistic terrain variations to the elevation model"""
+    # Create high-frequency noise
+    terrain_noise = self._generate_coherent_noise(octaves=6, persistence=0.5, scale=0.5)
+    
+    # Apply noise differently to different regions
+    for i in range(len(self.planet.elevation)):
+        if self.planet.elevation[i] > 0:  # Land
+            # More varied terrain on land
+            # Variation increases with elevation (mountains more rugged)
+            base_variation = 0.3 * terrain_noise[i]
+            elevation_factor = min(1.0, self.planet.elevation[i] / 3.0)
+            variation = base_variation * (1.0 + elevation_factor)
+            
+            self.planet.elevation[i] += variation
+        else:  # Ocean
+            # Smoother but still varied ocean floor
+            variation = 0.1 * terrain_noise[i]
+            self.planet.elevation[i] += variation
+    
+    # Add mountain ranges along convergent boundaries
+    if self.plate_boundaries is not None:
+        boundary_vertices = np.where(self.plate_boundaries)[0]
+        neighbors = self.planet.grid.get_vertex_neighbors()
+        
+        for i in boundary_vertices:
+            # Skip underwater boundaries
+            if self.planet.elevation[i] < 0:
+                continue
+                
+            # Check if this is a convergent boundary
+            plate_id = self.planet.plate_ids[i]
+            if plate_id == -1 or plate_id >= len(self.plates):
+                continue
+                
+            # Find neighbor from different plate
+            neighbor_plate = None
+            for n in neighbors[i]:
+                if self.planet.plate_ids[n] != plate_id and self.planet.plate_ids[n] != -1:
+                    neighbor_plate = self.planet.plate_ids[n]
+                    break
+            
+            if neighbor_plate is not None and neighbor_plate < len(self.plates):
+                # Check if both are continental
+                if (not self.plates[plate_id]['is_oceanic'] and 
+                    not self.plates[neighbor_plate]['is_oceanic']):
+                    # Continental collision = higher mountains
+                    self.planet.elevation[i] += np.random.random() * 2.0

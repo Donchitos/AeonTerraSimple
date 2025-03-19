@@ -12,7 +12,7 @@ from planet_sim.utils.visualization import PlanetVisualizer
 from planet_sim.utils.export import ExportManager
 from planet_sim.utils.visualization import WorldMapVisualizer
 import numpy as np
-import os
+import osre
 import argparse
 import json
 import time
