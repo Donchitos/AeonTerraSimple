@@ -51,9 +51,12 @@ target_link_libraries(minimal_test PRIVATE aeonterracpp)
 
 add_executable(fixed_test fixed_test.cpp)
 target_link_libraries(fixed_test PRIVATE aeonterracpp)
-
 add_executable(verification_test verification_test.cpp)
 target_link_libraries(verification_test PRIVATE aeonterracpp)
+
+add_executable(tectonic_verification tectonic_verification.cpp)
+target_link_libraries(tectonic_verification PRIVATE aeonterracpp)
+
 
 
 # Installation

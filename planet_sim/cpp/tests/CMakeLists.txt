@@ -16,8 +16,16 @@ target_link_libraries(test_spherical_grid PRIVATE aeonterracpp Catch2::Catch2Wit
 add_executable(test_planet test_planet.cpp)
 target_link_libraries(test_planet PRIVATE aeonterracpp Catch2::Catch2WithMain)
 
+add_executable(test_tectonics test_tectonics.cpp)
+target_link_libraries(test_tectonics PRIVATE aeonterracpp Catch2::Catch2WithMain)
+
+add_executable(test_heightmap_generator test_heightmap_generator.cpp)
+target_link_libraries(test_heightmap_generator PRIVATE aeonterracpp Catch2::Catch2WithMain)
+
 # Register tests
 include(CTest)
 include(Catch)
 catch_discover_tests(test_spherical_grid)
 catch_discover_tests(test_planet)
+catch_discover_tests(test_tectonics)
+catch_discover_tests(test_heightmap_generator)

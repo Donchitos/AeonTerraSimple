@@ -10,6 +10,8 @@ pybind11_add_module(aeonterracpp_python
     bindings.cpp
     spherical_grid_bindings.cpp
     planet_bindings.cpp
+    tectonics_bindings.cpp
+    heightmap_bindings.cpp
 )
 
 # Rename the target (to avoid the default name being 'python')

@@ -8,6 +8,8 @@ namespace py = pybind11;
 void init_vector_types(py::module_& m);
 void init_spherical_grid(py::module_& m);
 void init_planet_bindings(py::module_& m);
+void init_tectonics_bindings(py::module_& m);
+void init_heightmap_bindings(py::module_& m);
 
 PYBIND11_MODULE(_aeonterracpp, m) {
     m.doc() = "Python bindings for AeonTerra C++ implementation";
@@ -20,6 +22,12 @@ PYBIND11_MODULE(_aeonterracpp, m) {
     
     // Planet
     init_planet_bindings(m);
+    
+    // Tectonics
+    init_tectonics_bindings(m);
+    
+    // Heightmap generation
+    init_heightmap_bindings(m);
 }
 
 // Define vector types bindings

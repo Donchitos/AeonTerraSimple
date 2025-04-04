@@ -1,11 +1,16 @@
 # AeonTerra C++ Core Library
 
+# Add subdirectories
+add_subdirectory(heightmap)
+
 # Source files
 set(SOURCES
     core/spherical_grid.cpp
     core/vector_types.cpp
     core/spatial_index.cpp
     core/planet.cpp
+    core/tectonics.cpp
+    ${HEIGHTMAP_SOURCES}
 )
 
 # Create library
