@@ -3,6 +3,10 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <map>
+#include <string>
+#include <algorithm>
+#include <limits>
 #include <algorithm>
 #include <limits>
 

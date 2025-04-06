@@ -1,90 +1,116 @@
 #!/bin/bash
-# Build script for AeonTerraCpp
 
-set -e  # Exit on error
+# Exit on error
+set -e
 
-# Parse arguments
-BUILD_TYPE="Release"
-BUILD_TESTS=true
-BUILD_PYTHON=true
+# Display commands being executed
+set -x
 
-# Parse command line arguments
-for arg in "$@"; do
-  case $arg in
-    --debug)
-      BUILD_TYPE="Debug"
-      ;;
-    --no-tests)
-      BUILD_TESTS=false
-      ;;
-    --no-python)
-      BUILD_PYTHON=false
-      ;;
-    --help)
-      echo "Usage: $0 [options]"
-      echo "Options:"
-      echo "  --debug     Build in debug mode"
-      echo "  --no-tests  Skip building tests"
-      echo "  --no-python Skip building Python bindings"
-      echo "  --help      Show this help message"
-      exit 0
-      ;;
-  esac
-done
+# Make sure we're in the correct directory
+cd "$(dirname "$0")"
 
-echo "Building AeonTerraCpp in $BUILD_TYPE mode"
+# Create build directory if it doesn't exist
+mkdir -p build_simple
 
-# Create build directory
-mkdir -p build
-cd build
+# Navigate to build directory
+cd build_simple
 
-# Configure with CMake
-echo "Configuring with CMake..."
-cmake_args="-DCMAKE_BUILD_TYPE=$BUILD_TYPE"
+# Configure with CMake (disable tectonics and Python bindings)
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TECTONICS=OFF -DBUILD_PYTHON_BINDINGS=OFF -DBUILD_TESTS=OFF
 
-if [ "$BUILD_TESTS" = false ]; then
-  cmake_args="$cmake_args -DBUILD_TESTS=OFF"
+# Build the core library (without tectonics)
+make -j4 aeonterracpp_core
+
+# Get the Eigen include path - we need the directory that contains the Eigen/ folder
+# Try different search strategies to find it
+EIGEN_INCLUDE_DIR="_deps/eigen-src"
+
+if [ ! -d "$EIGEN_INCLUDE_DIR/Eigen" ]; then
+    echo "Searching for Eigen directory..."
+    
+    # Try to find the correct path
+    for dir in $(find _deps -type d -name "eigen*"); do
+        if [ -d "$dir/Eigen" ]; then
+            EIGEN_INCLUDE_DIR="$dir"
+            break
+        fi
+    done
 fi
 
-if [ "$BUILD_PYTHON" = false ]; then
-  cmake_args="$cmake_args -DBUILD_PYTHON_BINDINGS=OFF"
+echo "Found Eigen at: $EIGEN_INCLUDE_DIR"
+
+# Verify the Eigen path is correct
+if [ ! -f "$EIGEN_INCLUDE_DIR/Eigen/Core" ]; then
+    echo "Error: Could not find Eigen/Core header"
+    exit 1
 fi
 
-cmake $cmake_args ..
-
-# Build
-echo "Building..."
-cmake --build . -j$(nproc)
-
-# Run tests if enabled
-if [ "$BUILD_TESTS" = true ]; then
-  echo "Running tests..."
-  ctest --output-on-failure
+# Find library location
+if [ -f "src/libaeonterracpp_core.a" ]; then
+    LIB_PATH="src"
+elif [ -f "libaeonterracpp_core.a" ]; then
+    LIB_PATH="."
+else
+    echo "Error: Could not find libaeonterracpp_core.a"
+    find . -name "libaeonterracpp_core.a"
+    exit 1
 fi
 
-# Show success message
-echo "Build completed successfully!"
+echo "Found library at: $LIB_PATH"
 
-# Information about Python module
-if [ "$BUILD_PYTHON" = true ]; then
-  echo ""
-  echo "Python module information:"
-  echo "---------------------------"
-  python_path=$(find . -name "_aeonterracpp*.so" | head -1)
-  if [ -n "$python_path" ]; then
-    echo "Python module built at: $python_path"
-    echo ""
-    echo "To use the Python module, you can:"
-    echo "1. Add the following to your PYTHONPATH:"
-    echo "   export PYTHONPATH=\$PYTHONPATH:$(pwd)/python"
-    echo "2. Or copy the module to your Python site-packages directory"
-    echo ""
-    echo "Example usage (from the cpp directory):"
-    echo "  PYTHONPATH=\$PYTHONPATH:$(pwd)/python python3 ../example.py"
-  else
-    echo "Python module not found. There might have been an issue with the build."
-  fi
-fi
+# Compile the simplified heightmap demo directly
+g++ -o heightmap_demo ../simplified_heightmap_demo.cpp \
+    -I"$EIGEN_INCLUDE_DIR" \
+    -I../include \
+    -L"$LIB_PATH" -laeonterracpp_core \
+    -std=c++17 -O3 \
+    -Wl,-rpath,.
 
 # Return to original directory
 cd ..
+
+echo "Build completed successfully. Run with: ./run_simplified_demo.sh"
+
+# Create the run script
+cat > run_simplified_demo.sh << 'EOF'
+#!/bin/bash
+
+# Exit on error
+set -e
+
+# Directory for output
+OUTPUT_DIR="./heightmap_output"
+
+# Create output directory if it doesn't exist
+mkdir -p $OUTPUT_DIR
+
+# Change to the build directory
+cd build_simple
+
+# Run the heightmap demo
+echo "Running Simplified Heightmap Demo..."
+./heightmap_demo
+
+# Move output files to output directory
+echo "Moving output files to $OUTPUT_DIR"
+mv *.pgm ../$OUTPUT_DIR/
+
+# Return to original directory
+cd ..
+
+echo ""
+echo "======================================================="
+echo "Heightmap Demo Completed!"
+echo "PGM files saved in: $OUTPUT_DIR/"
+echo "======================================================="
+echo ""
+echo "To view these PGM files:"
+echo "1. In a local environment, most image viewers can open PGM files"
+echo "2. The ASCII visualization shown in the terminal gives a preview"
+echo "3. If you have ImageMagick installed, you can convert them with:"
+echo "   convert $OUTPUT_DIR/final_heightmap.pgm $OUTPUT_DIR/final_heightmap.png"
+echo ""
+EOF
+
+# Make the run script executable
+chmod +x ./run_simplified_demo.sh

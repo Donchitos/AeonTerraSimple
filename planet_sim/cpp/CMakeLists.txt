@@ -14,6 +14,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(USE_OPENGL "Build with OpenGL support for GPU acceleration" ON)
 option(USE_CUDA "Build with CUDA support for GPU acceleration" OFF)
+option(BUILD_TECTONICS "Build with tectonic simulation support" ON)
 
 # Dependencies
 find_package(Eigen3 3.3 REQUIRED)
