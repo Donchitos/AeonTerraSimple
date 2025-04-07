@@ -18,10 +18,17 @@ elseif(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /O2")
 endif()
 
+# Enable OpenMP if available
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
 # Set include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
+    ${PYBIND11_INCLUDE_DIR}
 )
 
 # Create build target list
@@ -41,6 +48,9 @@ set(AEONTERRACPP_SOURCES
     src/core/enhanced_erosion.cpp
     src/core/biome_climate_feedback.cpp
     src/core/river_ocean_chemistry.cpp
+    src/optimization/spatial_acceleration.cpp
+    src/optimization/parallel_processing.cpp
+    src/optimization/memory_optimization.cpp
 )
 
 # Compile library
@@ -48,7 +58,7 @@ add_library(aeonterracpp STATIC ${AEONTERRACPP_SOURCES})
 target_link_libraries(aeonterracpp PRIVATE Eigen3::Eigen)
 
 # Create Python module
-pybind11_add_module(_aeonterracpp 
+pybind11_add_module(_aeonterracpp
     python/bindings.cpp
     python/spherical_grid_bindings.cpp
     python/planet_bindings.cpp
@@ -59,6 +69,7 @@ pybind11_add_module(_aeonterracpp
     python/erosion_bindings.cpp
     python/feedback_bindings.cpp
     python/chemistry_bindings.cpp
+    python/optimization_bindings.cpp
 )
 target_link_libraries(_aeonterracpp PRIVATE aeonterracpp)
 

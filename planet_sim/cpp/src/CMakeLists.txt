@@ -2,6 +2,7 @@
 
 # Add subdirectories
 add_subdirectory(heightmap)
+add_subdirectory(optimization)
 
 # Core source files (without tectonics)
 set(CORE_SOURCES
@@ -25,6 +26,13 @@ endif()
 
 # Add heightmap sources
 list(APPEND SOURCES ${HEIGHTMAP_SOURCES})
+
+# Add optimization sources if available
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/optimization/CMakeLists.txt")
+    add_subdirectory(optimization)
+    # Variable OPTIMIZATION_SOURCES is defined in optimization/CMakeLists.txt
+    list(APPEND SOURCES ${OPTIMIZATION_SOURCES})
+endif()
 
 # Create full library
 add_library(aeonterracpp STATIC ${SOURCES})

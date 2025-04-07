@@ -46,20 +46,19 @@ struct ParamMetadata {
     std::string units;
     
     // Optional validation constraints
-    std::optional<double> minValue;
-    std::optional<double> maxValue;
-    std::optional<double> stepSize;
-    std::optional<double> defaultValue;
-    std::optional<std::vector<std::string>> enumOptions;
-    std::optional<std::string> fileExtension;
-    std::optional<std::string> regexPattern;
+    double minValue = 0;
+    double maxValue = 0;
+    double stepSize = 0;
+    double defaultValue = 0;
+    std::vector<std::string> enumOptions;
+    std::string fileExtension;
+    std::string regexPattern;
     
     // UI presentation hints
     bool hidden = false;
     std::string uiWidget;
     int uiOrder = 0;
-    std::optional<std::string> uiHint;
-    std::optional<std::function<bool(const std::any&)>> validationFunc;
+    std::string uiHint;
 };
 
 /**
@@ -68,13 +67,13 @@ struct ParamMetadata {
 class ParamValue {
 public:
     // Constructors for different value types
-    ParamValue() : type_(ParamType::String), value_("") {}
-    explicit ParamValue(int value) : type_(ParamType::Int), value_(value) {}
-    explicit ParamValue(float value) : type_(ParamType::Float), value_(value) {}
-    explicit ParamValue(double value) : type_(ParamType::Double), value_(value) {}
-    explicit ParamValue(bool value) : type_(ParamType::Bool), value_(value) {}
-    explicit ParamValue(const std::string& value) : type_(ParamType::String), value_(value) {}
-    explicit ParamValue(const char* value) : type_(ParamType::String), value_(std::string(value)) {}
+    ParamValue() : type_(ParamType::String), valueStr("") {}
+    explicit ParamValue(int value) : type_(ParamType::Int), valueInt(value) {}
+    explicit ParamValue(float value) : type_(ParamType::Float), valueFloat(value) {}
+    explicit ParamValue(double value) : type_(ParamType::Double), valueDouble(value) {}
+    explicit ParamValue(bool value) : type_(ParamType::Bool), valueBool(value) {}
+    explicit ParamValue(const std::string& value) : type_(ParamType::String), valueStr(value) {}
+    explicit ParamValue(const char* value) : type_(ParamType::String), valueStr(std::string(value)) {}
     
     // Set value
     template<typename T>
@@ -95,7 +94,13 @@ public:
     
 private:
     ParamType type_;
-    std::variant<int, float, double, bool, std::string> value_;
+    
+    // Use individual member variables instead of std::variant to avoid C++17 issues
+    int valueInt = 0;
+    float valueFloat = 0.0f;
+    double valueDouble = 0.0;
+    bool valueBool = false;
+    std::string valueStr;
 };
 
 /**
@@ -431,20 +436,10 @@ public:
      * @param key Parameter key
      * @param defaultValue Default value
      * @param description Parameter description
-     * @param minValue Minimum value (optional)
-     * @param maxValue Maximum value (optional)
-     * @param stepSize Step size (optional)
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerInt(const std::string& key, int defaultValue,
-                                 const std::string& description,
-                                 std::optional<int> minValue = std::nullopt,
-                                 std::optional<int> maxValue = std::nullopt,
-                                 std::optional<int> stepSize = std::nullopt,
-                                 bool advanced = false,
-                                 const std::string& category = "");
+                                 const std::string& description);
     
     /**
      * @brief Register float parameter
@@ -452,22 +447,10 @@ public:
      * @param key Parameter key
      * @param defaultValue Default value
      * @param description Parameter description
-     * @param minValue Minimum value (optional)
-     * @param maxValue Maximum value (optional)
-     * @param stepSize Step size (optional)
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
-     * @param units Parameter units
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerFloat(const std::string& key, float defaultValue,
-                                   const std::string& description,
-                                   std::optional<float> minValue = std::nullopt,
-                                   std::optional<float> maxValue = std::nullopt,
-                                   std::optional<float> stepSize = std::nullopt,
-                                   bool advanced = false,
-                                   const std::string& category = "",
-                                   const std::string& units = "");
+                                   const std::string& description);
     
     /**
      * @brief Register boolean parameter
@@ -475,14 +458,10 @@ public:
      * @param key Parameter key
      * @param defaultValue Default value
      * @param description Parameter description
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerBool(const std::string& key, bool defaultValue,
-                                  const std::string& description,
-                                  bool advanced = false,
-                                  const std::string& category = "");
+                                  const std::string& description);
     
     /**
      * @brief Register string parameter
@@ -490,16 +469,10 @@ public:
      * @param key Parameter key
      * @param defaultValue Default value
      * @param description Parameter description
-     * @param regexPattern Validation regex pattern (optional)
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerString(const std::string& key, const std::string& defaultValue,
-                                    const std::string& description,
-                                    std::optional<std::string> regexPattern = std::nullopt,
-                                    bool advanced = false,
-                                    const std::string& category = "");
+                                    const std::string& description);
     
     /**
      * @brief Register enum parameter
@@ -508,16 +481,12 @@ public:
      * @param options Enum options
      * @param defaultValue Default value
      * @param description Parameter description
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerEnum(const std::string& key, 
                                   const std::vector<std::string>& options,
                                   const std::string& defaultValue,
-                                  const std::string& description,
-                                  bool advanced = false,
-                                  const std::string& category = "");
+                                  const std::string& description);
     
     /**
      * @brief Register file path parameter
@@ -526,15 +495,11 @@ public:
      * @param defaultValue Default value
      * @param description Parameter description
      * @param fileExtension File extension filter
-     * @param advanced Advanced parameter flag
-     * @param category Parameter category
      * @return ConfigInitializer& Reference to this initializer
      */
     ConfigInitializer& registerPath(const std::string& key, const std::string& defaultValue,
-                                  const std::string& description,
-                                  const std::string& fileExtension = "",
-                                  bool advanced = false,
-                                  const std::string& category = "");
+                                  const std::string& description, 
+                                  const std::string& fileExtension = "");
     
 private:
     ConfigManager& configManager_;
@@ -583,7 +548,7 @@ struct UIConfig {
                          "default", "UI theme")
             .registerBool("nativeFileDialogs", true, "Use native file dialogs")
             .registerBool("gridLayout", true, "Use grid layout for parameters")
-            .registerInt("labelWidth", 200, "Width of parameter labels", 100, 500, 10)
+            .registerInt("labelWidth", 200, "Width of parameter labels")
             .registerBool("groupDefaults", true, "Group default configurations")
             .registerBool("showHistory", true, "Show configuration history")
             .registerBool("allowPresets", true, "Allow user-defined parameter presets");
@@ -622,34 +587,21 @@ struct PerformanceConfig {
         
         initializer
             .registerBool("enableMultithreading", true, "Enable multithreaded processing")
-            .registerInt("numThreads", 0, "Number of threads (0 = automatic)", 
-                        0, 128, 1, false, "Threading", "threads")
-            .registerBool("enableVectorization", true, "Enable SIMD vectorization", 
-                         true, "Optimization")
-            .registerBool("useGPUAcceleration", false, "Use GPU acceleration if available", 
-                         true, "Acceleration")
-            .registerBool("enableCaching", true, "Enable data caching", 
-                         false, "Memory")
-            .registerInt("cacheSizeMB", 512, "Cache size", 
-                        32, 8192, 32, true, "Memory", "MB")
-            .registerBool("enableProgressiveRendering", true, "Enable progressive rendering", 
-                         false, "Rendering")
-            .registerBool("useLowResolutionPreview", true, "Use low resolution for preview", 
-                         false, "Rendering")
-            .registerInt("maxVRAMUsageMB", 2048, "Maximum VRAM usage", 
-                        128, 16384, 128, true, "Memory", "MB")
-            .registerInt("targetFPS", 30, "Target frames per second", 
-                        1, 144, 1, false, "Rendering", "FPS")
-            .registerBool("enableAsyncLoading", true, "Enable asynchronous loading", 
-                         false, "Loading")
-            .registerBool("useMemoryMapping", false, "Use memory mapping for large datasets", 
-                         true, "Memory")
-            .registerInt("maxRAMPercentage", 70, "Maximum RAM usage", 
-                        10, 95, 5, false, "Memory", "%")
+            .registerInt("numThreads", 0, "Number of threads (0 = automatic)")
+            .registerBool("enableVectorization", true, "Enable SIMD vectorization")
+            .registerBool("useGPUAcceleration", false, "Use GPU acceleration if available")
+            .registerBool("enableCaching", true, "Enable data caching")
+            .registerInt("cacheSizeMB", 512, "Cache size")
+            .registerBool("enableProgressiveRendering", true, "Enable progressive rendering")
+            .registerBool("useLowResolutionPreview", true, "Use low resolution for preview")
+            .registerInt("maxVRAMUsageMB", 2048, "Maximum VRAM usage")
+            .registerInt("targetFPS", 30, "Target frames per second")
+            .registerBool("enableAsyncLoading", true, "Enable asynchronous loading")
+            .registerBool("useMemoryMapping", false, "Use memory mapping for large datasets")
+            .registerInt("maxRAMPercentage", 70, "Maximum RAM usage")
             .registerEnum("optimizationLevel", 
                          {"quality", "balanced", "performance", "ultra"}, 
-                         "balanced", "Optimization level", 
-                         false, "Optimization");
+                         "balanced", "Optimization level");
     }
 };
 
@@ -688,25 +640,16 @@ struct SystemConfig {
             .registerPath("tempDirectory", "", "Temporary directory path")
             .registerPath("exportDirectory", "", "Export directory path")
             .registerPath("logDirectory", "", "Log directory path")
-            .registerInt("logLevel", 2, "Log level", 0, 4, 1, false, "Logging")
-            .registerBool("enableCrashReporting", true, "Enable crash reporting", 
-                         false, "Reporting")
-            .registerBool("autoSaveConfigs", true, "Auto-save configurations", 
-                         false, "Saving")
-            .registerInt("autoSaveInterval", 10, "Auto-save interval", 
-                        1, 60, 1, false, "Saving", "minutes")
-            .registerBool("checkForUpdates", true, "Check for updates on startup", 
-                         false, "Updates")
-            .registerPath("lastOpenedFile", "", "Last opened file path", 
-                         "", true)
-            .registerBool("enableTelemetry", false, "Enable anonymous usage data", 
-                         false, "Privacy")
-            .registerBool("useSystemLocale", true, "Use system locale", 
-                         false, "Localization")
-            .registerString("customLocale", "en_US", "Custom locale", 
-                          std::nullopt, false, "Localization")
-            .registerPath("externalEditor", "", "External editor path", 
-                         "", false, "Integration");
+            .registerInt("logLevel", 2, "Log level")
+            .registerBool("enableCrashReporting", true, "Enable crash reporting")
+            .registerBool("autoSaveConfigs", true, "Auto-save configurations")
+            .registerInt("autoSaveInterval", 10, "Auto-save interval")
+            .registerBool("checkForUpdates", true, "Check for updates on startup")
+            .registerPath("lastOpenedFile", "", "Last opened file path")
+            .registerBool("enableTelemetry", false, "Enable anonymous usage data")
+            .registerBool("useSystemLocale", true, "Use system locale")
+            .registerString("customLocale", "en_US", "Custom locale")
+            .registerPath("externalEditor", "", "External editor path");
     }
 };
 

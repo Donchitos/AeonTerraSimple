@@ -15,6 +15,7 @@ void init_biome_bindings(py::module_& m);
 void init_erosion_bindings(py::module_& m);
 void init_feedback_bindings(py::module_& m);
 void init_chemistry_bindings(py::module_& m);
+void init_optimization_bindings(py::module_& m);
 
 PYBIND11_MODULE(_aeonterracpp, m) {
     m.doc() = "Python bindings for AeonTerra C++ implementation";
@@ -48,6 +49,9 @@ PYBIND11_MODULE(_aeonterracpp, m) {
     
     // River-Ocean chemistry system
     init_chemistry_bindings(m);
+    
+    // Performance optimization components
+    init_optimization_bindings(m);
 }
 
 // Define vector types bindings

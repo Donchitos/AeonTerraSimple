@@ -12,6 +12,12 @@ pybind11_add_module(aeonterracpp_python
     planet_bindings.cpp
     tectonics_bindings.cpp
     heightmap_bindings.cpp
+    climate_bindings.cpp
+    biome_bindings.cpp
+    erosion_bindings.cpp
+    feedback_bindings.cpp
+    chemistry_bindings.cpp
+    optimization_bindings.cpp
 )
 
 # Rename the target (to avoid the default name being 'python')
