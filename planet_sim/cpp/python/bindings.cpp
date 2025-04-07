@@ -10,6 +10,11 @@ void init_spherical_grid(py::module_& m);
 void init_planet_bindings(py::module_& m);
 void init_tectonics_bindings(py::module_& m);
 void init_heightmap_bindings(py::module_& m);
+void init_climate_bindings(py::module_& m);
+void init_biome_bindings(py::module_& m);
+void init_erosion_bindings(py::module_& m);
+void init_feedback_bindings(py::module_& m);
+void init_chemistry_bindings(py::module_& m);
 
 PYBIND11_MODULE(_aeonterracpp, m) {
     m.doc() = "Python bindings for AeonTerra C++ implementation";
@@ -28,6 +33,21 @@ PYBIND11_MODULE(_aeonterracpp, m) {
     
     // Heightmap generation
     init_heightmap_bindings(m);
+    
+    // Climate system
+    init_climate_bindings(m);
+    
+    // Biome system
+    init_biome_bindings(m);
+    
+    // Erosion system
+    init_erosion_bindings(m);
+    
+    // Biome-Climate feedback system
+    init_feedback_bindings(m);
+    
+    // River-Ocean chemistry system
+    init_chemistry_bindings(m);
 }
 
 // Define vector types bindings

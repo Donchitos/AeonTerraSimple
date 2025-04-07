@@ -1,64 +1,72 @@
 cmake_minimum_required(VERSION 3.14)
-project(AeonTerraCpp VERSION 0.1.0 LANGUAGES CXX)
+project(AeonTerraCpp VERSION 1.0.0 LANGUAGES CXX)
 
-# Set C++17 as the standard
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Add custom CMake modules
+# Find dependencies
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Eigen3 REQUIRED)
+find_package(Pybind11 REQUIRED)
 
-# Options
-option(BUILD_TESTS "Build tests" ON)
-option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
-option(USE_OPENGL "Build with OpenGL support for GPU acceleration" ON)
-option(USE_CUDA "Build with CUDA support for GPU acceleration" OFF)
-option(BUILD_TECTONICS "Build with tectonic simulation support" ON)
+# Set compiler flags
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O3")
+elseif(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /O2")
+endif()
 
-# Dependencies
-find_package(Eigen3 3.3 REQUIRED)
-find_package(Threads REQUIRED)
-
-# Include directories
+# Set include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
 )
 
-# Core library
-add_subdirectory(src)
+# Create build target list
+set(AEONTERRACPP_SOURCES
+    src/core/vector_types.cpp
+    src/core/spatial_index.cpp
+    src/core/spherical_grid.cpp
+    src/core/planet.cpp
+    src/core/tectonics.cpp
+    src/core/heightmap_generator.cpp
+    src/core/enhanced_planet.cpp
+    src/core/atmospheric_circulation.cpp
+    src/core/oceanic_circulation.cpp
+    src/core/hydrological_system.cpp
+    src/core/climate_system.cpp
+    src/core/biome_system.cpp
+    src/core/enhanced_erosion.cpp
+    src/core/biome_climate_feedback.cpp
+    src/core/river_ocean_chemistry.cpp
+)
 
-# Python bindings
-if(BUILD_PYTHON_BINDINGS)
-    find_package(pybind11 QUIET)
-    if(NOT pybind11_FOUND)
-        include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindPybind11.cmake)
-    endif()
-    add_subdirectory(python)
-endif()
+# Compile library
+add_library(aeonterracpp STATIC ${AEONTERRACPP_SOURCES})
+target_link_libraries(aeonterracpp PRIVATE Eigen3::Eigen)
 
-# Tests
-if(BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
-endif()
-# Test executables
-add_executable(simple_test simple_test.cpp)
-target_link_libraries(simple_test PRIVATE aeonterracpp)
+# Create Python module
+pybind11_add_module(_aeonterracpp 
+    python/bindings.cpp
+    python/spherical_grid_bindings.cpp
+    python/planet_bindings.cpp
+    python/tectonics_bindings.cpp
+    python/heightmap_bindings.cpp
+    python/climate_bindings.cpp
+    python/biome_bindings.cpp
+    python/erosion_bindings.cpp
+    python/feedback_bindings.cpp
+    python/chemistry_bindings.cpp
+)
+target_link_libraries(_aeonterracpp PRIVATE aeonterracpp)
 
-add_executable(minimal_test minimal_test.cpp)
-target_link_libraries(minimal_test PRIVATE aeonterracpp)
+# Install targets
+install(TARGETS aeonterracpp DESTINATION lib)
+install(TARGETS _aeonterracpp DESTINATION python/planet_sim/cpp/python)
+install(DIRECTORY include/ DESTINATION include)
 
-add_executable(fixed_test fixed_test.cpp)
-target_link_libraries(fixed_test PRIVATE aeonterracpp)
-add_executable(verification_test verification_test.cpp)
-target_link_libraries(verification_test PRIVATE aeonterracpp)
-
-add_executable(tectonic_verification tectonic_verification.cpp)
-target_link_libraries(tectonic_verification PRIVATE aeonterracpp)
-
-
-
-# Installation
-install(DIRECTORY include/ DESTINATION include/aeonterracpp)
+# Add tests
+# Comment out if not building tests
+add_subdirectory(tests)

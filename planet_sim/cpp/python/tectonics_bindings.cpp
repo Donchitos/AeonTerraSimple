@@ -8,7 +8,7 @@ namespace py = pybind11;
 namespace aeonterracpp {
 
 void init_tectonics_bindings(py::module& m) {
-    // Bind PlateInteractionType enum
+    // Enum for plate interaction types
     py::enum_<PlateInteractionType>(m, "PlateInteractionType")
         .value("None", PlateInteractionType::None)
         .value("Divergent", PlateInteractionType::Divergent)
@@ -17,7 +17,7 @@ void init_tectonics_bindings(py::module& m) {
         .value("Subduction", PlateInteractionType::Subduction)
         .value("Collision", PlateInteractionType::Collision)
         .export_values();
-    
+
     // Bind TectonicPlate class
     py::class_<TectonicPlate>(m, "TectonicPlate")
         .def(py::init<int, const Vec3f&>())
@@ -31,17 +31,17 @@ void init_tectonics_bindings(py::module& m) {
         .def("is_oceanic", &TectonicPlate::isOceanic)
         .def("set_oceanic", &TectonicPlate::setOceanic)
         .def("calculate_bounding_box", &TectonicPlate::calculateBoundingBox);
-    
+
     // Bind ConvectionCell class
     py::class_<ConvectionCell>(m, "ConvectionCell")
         .def(py::init<const Vec3f&, float>())
         .def("get_center", &ConvectionCell::getCenter)
         .def("get_strength", &ConvectionCell::getStrength)
         .def("calculate_force_at", &ConvectionCell::calculateForceAt);
-    
+
     // Bind TectonicSimulation class
     py::class_<TectonicSimulation>(m, "TectonicSimulation")
-        .def(py::init<Planet&, int, unsigned int>(),
+        .def(py::init<Planet&, int, unsigned int>(), 
              py::arg("planet"), 
              py::arg("num_plates") = 7, 
              py::arg("seed") = 0)
@@ -53,7 +53,75 @@ void init_tectonics_bindings(py::module& m) {
         .def("get_plates", &TectonicSimulation::getPlates, py::return_value_policy::reference_internal)
         .def("set_tectonic_activity", &TectonicSimulation::setTectonicActivity)
         .def("get_tectonic_activity", &TectonicSimulation::getTectonicActivity)
-        .def("calculate_isostatic_adjustment", &TectonicSimulation::calculateIsostaticAdjustment);
+        .def("calculate_isostatic_adjustment", &TectonicSimulation::calculateIsostaticAdjustment)
+        .def("get_super_continent_cycle_phase", &TectonicSimulation::getSuperContinentCyclePhase)
+        
+        // Expose ClimateSystem's data
+        .def_property_readonly("temperature", [](const TectonicSimulation& sim) {
+            const auto& climate = sim.getClimateSystem();
+            return py::array_t<float>(
+                {climate.temperature.size()},
+                {sizeof(float)},
+                climate.temperature.data(),
+                py::cast(sim)
+            );
+        })
+        .def_property_readonly("precipitation", [](const TectonicSimulation& sim) {
+            const auto& climate = sim.getClimateSystem();
+            return py::array_t<float>(
+                {climate.precipitation.size()},
+                {sizeof(float)},
+                climate.precipitation.data(),
+                py::cast(sim)
+            );
+        })
+        .def_property_readonly("weathering_rate", [](const TectonicSimulation& sim) {
+            const auto& climate = sim.getClimateSystem();
+            return py::array_t<float>(
+                {climate.weatheringRate.size()},
+                {sizeof(float)},
+                climate.weatheringRate.data(),
+                py::cast(sim)
+            );
+        })
+        
+        // Expose HydrologicalSystem's data
+        .def_property_readonly("drainage", [](const TectonicSimulation& sim) {
+            const auto& hydro = sim.getHydrologicalSystem();
+            return py::array_t<float>(
+                {hydro.drainage.size()},
+                {sizeof(float)},
+                hydro.drainage.data(),
+                py::cast(sim)
+            );
+        })
+        .def_property_readonly("river_flow", [](const TectonicSimulation& sim) {
+            const auto& hydro = sim.getHydrologicalSystem();
+            return py::array_t<float>(
+                {hydro.riverFlow.size()},
+                {sizeof(float)},
+                hydro.riverFlow.data(),
+                py::cast(sim)
+            );
+        })
+        .def_property_readonly("is_river", [](const TectonicSimulation& sim) {
+            const auto& hydro = sim.getHydrologicalSystem();
+            return py::array_t<bool>(
+                {hydro.isRiver.size()},
+                {sizeof(bool)},
+                hydro.isRiver.data(),
+                py::cast(sim)
+            );
+        })
+        .def_property_readonly("is_lake", [](const TectonicSimulation& sim) {
+            const auto& hydro = sim.getHydrologicalSystem();
+            return py::array_t<bool>(
+                {hydro.isLake.size()},
+                {sizeof(bool)},
+                hydro.isLake.data(),
+                py::cast(sim)
+            );
+        });
 }
 
 } // namespace aeonterracpp

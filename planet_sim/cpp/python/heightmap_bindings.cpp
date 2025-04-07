@@ -1,78 +1,86 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "aeonterracpp/heightmap/heightmap_generator.h"
+#include <pybind11/functional.h>
+#include "aeonterracpp/core/heightmap_generator.h"
 
 namespace py = pybind11;
 
 namespace aeonterracpp {
 
 void init_heightmap_bindings(py::module& m) {
-    // Bind HeightmapData
-    py::class_<HeightmapData>(m, "HeightmapData")
-        .def(py::init<int, int, const BoundingBox&>())
-        .def_readonly("width", &HeightmapData::width)
-        .def_readonly("height", &HeightmapData::height)
-        .def_readonly("min_value", &HeightmapData::minValue)
-        .def_readonly("max_value", &HeightmapData::maxValue)
-        .def_readonly("region", &HeightmapData::region)
-        .def("get", &HeightmapData::get)
-        .def("set", &HeightmapData::set)
-        .def("normalize", &HeightmapData::normalize)
-        .def("blend", &HeightmapData::blend)
-        .def_property_readonly("data", [](const HeightmapData& hm) {
-            // Convert heightmap data to numpy array
-            auto data = py::array_t<float>({hm.height, hm.width});  // Note: height first for numpy
-            auto buffer = data.request();
-            float* ptr = static_cast<float*>(buffer.ptr);
-            
-            for (int y = 0; y < hm.height; y++) {
-                for (int x = 0; x < hm.width; x++) {
-                    ptr[y * hm.width + x] = hm.get(x, y);
-                }
-            }
-            
-            return data;
-        });
-    
-    // Bind HeightmapConfig
-    py::class_<HeightmapConfig>(m, "HeightmapConfig")
+    // Bind HeightmapParams struct
+    py::class_<HeightmapParams>(m, "HeightmapParams")
         .def(py::init<>())
-        .def_readwrite("region", &HeightmapConfig::region)
-        .def_readwrite("width", &HeightmapConfig::width)
-        .def_readwrite("height", &HeightmapConfig::height)
-        .def_readwrite("enhance_detail", &HeightmapConfig::enhanceDetail)
-        .def_readwrite("roughness", &HeightmapConfig::roughness)
-        .def_readwrite("octaves", &HeightmapConfig::octaves)
-        .def_readwrite("detail_scale", &HeightmapConfig::detailScale)
-        .def_readwrite("normalize_values", &HeightmapConfig::normalizeValues)
-        .def_readwrite("bit_depth", &HeightmapConfig::bitDepth)
-        .def_readwrite("use_tiling", &HeightmapConfig::useTiling)
-        .def_readwrite("tile_size", &HeightmapConfig::tileSize)
-        .def_readwrite("tile_overlap", &HeightmapConfig::tileOverlap);
-    
-    // Bind HeightmapGenerator
+        // Resolution parameters
+        .def_readwrite("width", &HeightmapParams::width)
+        .def_readwrite("height", &HeightmapParams::height)
+        // Basic parameters
+        .def_readwrite("ocean_level", &HeightmapParams::oceanLevel)
+        .def_readwrite("max_elevation", &HeightmapParams::maxElevation)
+        .def_readwrite("min_elevation", &HeightmapParams::minElevation)
+        .def_readwrite("continental_shelf_depth", &HeightmapParams::continentalShelfDepth)
+        // Noise parameters
+        .def_readwrite("noise_seed", &HeightmapParams::noiseSeed)
+        .def_readwrite("noise_scale", &HeightmapParams::noiseScale)
+        .def_readwrite("noise_strength", &HeightmapParams::noiseStrength)
+        .def_readwrite("noise_octaves", &HeightmapParams::noiseOctaves)
+        .def_readwrite("noise_persistence", &HeightmapParams::noisePersistence)
+        .def_readwrite("noise_lacunarity", &HeightmapParams::noiseLacunarity)
+        // Mountain parameters
+        .def_readwrite("mountain_roughness", &HeightmapParams::mountainRoughness)
+        .def_readwrite("plateau_flatness", &HeightmapParams::plateauFlatness)
+        // Erosion parameters
+        .def_readwrite("erosion_iterations", &HeightmapParams::erosionIterations)
+        .def_readwrite("erosion_strength", &HeightmapParams::erosionStrength)
+        .def_readwrite("river_erosion_factor", &HeightmapParams::riverErosionFactor)
+        // Tectonic influence
+        .def_readwrite("tectonic_influence", &HeightmapParams::tectonicInfluence)
+        .def_readwrite("fault_displacement", &HeightmapParams::faultDisplacement)
+        // Climate influence
+        .def_readwrite("climate_influence", &HeightmapParams::climateInfluence)
+        .def_readwrite("precipitation_erosion", &HeightmapParams::precipitationErosion)
+        .def("__repr__", [](const HeightmapParams& params) {
+            return "HeightmapParams(width=" + std::to_string(params.width) + 
+                   ", height=" + std::to_string(params.height) +
+                   ", max_elevation=" + std::to_string(params.maxElevation) +
+                   ", min_elevation=" + std::to_string(params.minElevation) + ")";
+        });
+
+    // Bind HeightmapGenerator class
     py::class_<HeightmapGenerator>(m, "HeightmapGenerator")
-        .def(py::init<int>(), py::arg("max_resolution") = 16384)
-        .def("generate_heightmap", &HeightmapGenerator::generateHeightmap)
-        .def("enhance_detail", &HeightmapGenerator::enhanceDetail)
-        .def("export_png", &HeightmapGenerator::exportPNG,
-             py::arg("heightmap"), py::arg("filename"), py::arg("normalize_values") = true)
-        .def("export_tiff", &HeightmapGenerator::exportTIFF,
-             py::arg("heightmap"), py::arg("filename"), py::arg("bit_depth") = 16)
-        .def("export_raw", &HeightmapGenerator::exportRAW,
-             py::arg("heightmap"), py::arg("filename"), py::arg("normalize_values") = true);
-    
-    // Bind HeightmapConfigFactory
-    py::class_<HeightmapConfigFactory>(m, "HeightmapConfigFactory")
-        .def_static("create_global_config", &HeightmapConfigFactory::createGlobalConfig,
-                   py::arg("width") = 4096, py::arg("height") = 2048)
-        .def_static("create_regional_config", &HeightmapConfigFactory::createRegionalConfig,
-                   py::arg("center_lat"), py::arg("center_lon"),
-                   py::arg("width"), py::arg("height"),
-                   py::arg("resolution") = 16)
-        .def_static("create_detailed_terrain_config", &HeightmapConfigFactory::createDetailedTerrainConfig,
-                   py::arg("region"), py::arg("resolution") = 2048);
+        .def(py::init<const Planet&, const TectonicSimulation*>(),
+             py::arg("planet"),
+             py::arg("tectonics") = nullptr)
+        .def("set_parameters", &HeightmapGenerator::setParameters)
+        .def("get_parameters", &HeightmapGenerator::getParameters)
+        .def("generate", &HeightmapGenerator::generate,
+             py::arg("equirectangular") = true,
+             "Generate a heightmap from the planet data")
+        .def("generate_normal_map", &HeightmapGenerator::generateNormalMap,
+             "Generate a normal map from the current heightmap data")
+        .def("generate_slope_map", &HeightmapGenerator::generateSlopeMap,
+             "Generate a slope map from the current heightmap data")
+        .def("save_to_file", &HeightmapGenerator::saveToFile,
+             py::arg("filename"),
+             py::arg("format") = "png",
+             "Save the heightmap to a file")
+        .def("get_width", &HeightmapGenerator::getWidth)
+        .def("get_height", &HeightmapGenerator::getHeight)
+        .def("set_terrain_modifier", &HeightmapGenerator::setTerrainModifier,
+             "Set a custom terrain modifier function")
+        .def_property_readonly("data", [](const HeightmapGenerator& generator) {
+            const auto& data = generator.getData();
+            int width = generator.getWidth();
+            int height = generator.getHeight();
+            
+            return py::array_t<float>(
+                {height, width},                         // Shape (2D array, rows first)
+                {width * sizeof(float), sizeof(float)},  // Strides for row-major layout
+                data.data(),                             // Data pointer
+                py::cast(generator)                      // Keep alive reference
+            );
+        }, "Get the raw heightmap data as a numpy array");
 }
 
 } // namespace aeonterracpp
